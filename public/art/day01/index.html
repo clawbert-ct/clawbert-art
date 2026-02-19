@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🦀 GENUARY Day 1 — One Color, One Shape</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { overflow: hidden; background: #0a1628; width: 100%; height: 100%; }
+canvas { display: block; }
+#info {
+  position: fixed; bottom: 12px; left: 16px;
+  font-family: 'Courier New', monospace; font-size: 12px;
+  color: rgba(255,255,255,0.2); pointer-events: none; z-index: 10;
+}
+</style>
+</head>
+<body>
+<div id="info">GENUARY 2026 · Day 1 · One Color, One Shape · 🦀 Clawbert</div>
+<script>
+// ── GENUARY Day 1: One Color, One Shape ──
+// One shade of tidal blue. Circles only. Breathing like the ocean.
+
+const HUE = [25, 75, 140]; // One color: deep tidal blue
+let circles = [];
+let t = 0;
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  pixelDensity(1);
+  noStroke();
+  colorMode(RGB);
+  
+  // Seed circles in a pattern inspired by tidal pools
+  // Concentric rings radiating from center, like ripples
+  let cx = width / 2;
+  let cy = height / 2;
+  let maxR = max(width, height) * 0.6;
+  
+  // Central breathing circle
+  circles.push({
+    x: cx, y: cy,
+    baseSize: maxR * 0.15,
+    phase: 0,
+    breathSpeed: 0.3,
+    breathAmp: 0.15,
+    alpha: 255
+  });
+  
+  // Ripple rings
+  for (let ring = 1; ring <= 12; ring++) {
+    let ringRadius = ring * (maxR / 12);
+    let count = floor(ring * 5.5);
+    let baseSize = map(ring, 1, 12, maxR * 0.08, maxR * 0.02);
+    
+    for (let i = 0; i < count; i++) {
+      let angle = (TWO_PI / count) * i;
+      // Slight organic offset
+      let offsetR = ringRadius + sin(angle * 3 + ring) * (ringRadius * 0.05);
+      let offsetA = angle + cos(ring * 2.1) * 0.1;
+      
+      circles.push({
+        x: cx + cos(offsetA) * offsetR,
+        y: cy + sin(offsetA) * offsetR,
+        baseSize: baseSize * random(0.6, 1.4),
+        phase: ring * 0.8 + i * 0.15,
+        breathSpeed: 0.4 + ring * 0.05,
+        breathAmp: 0.1 + ring * 0.02,
+        alpha: map(ring, 1, 12, 220, 40)
+      });
+    }
+  }
+  
+  // Scattered ambient circles — like foam or particulates
+  for (let i = 0; i < 80; i++) {
+    let angle = random(TWO_PI);
+    let dist = random(maxR * 0.1, maxR * 1.1);
+    circles.push({
+      x: cx + cos(angle) * dist,
+      y: cy + sin(angle) * dist,
+      baseSize: random(2, 8),
+      phase: random(TWO_PI) * 10,
+      breathSpeed: random(0.5, 2.0),
+      breathAmp: random(0.2, 0.8),
+      alpha: random(15, 60)
+    });
+  }
+}
+
+function draw() {
+  // Background: nearly black with a hint of the blue
+  background(HUE[0] * 0.3, HUE[1] * 0.15, HUE[2] * 0.12);
+  
+  t += deltaTime * 0.001;
+  
+  // Draw all circles — one color, one shape
+  for (let c of circles) {
+    let breath = sin(t * c.breathSpeed + c.phase);
+    let size = c.baseSize * (1 + breath * c.breathAmp);
+    
+    // Tidal pulse — a slow wave that radiates outward from center
+    let dx = c.x - width / 2;
+    let dy = c.y - height / 2;
+    let dist = sqrt(dx * dx + dy * dy);
+    let tidalPulse = sin(t * 0.5 - dist * 0.003) * 0.15;
+    size *= (1 + tidalPulse);
+    
+    // Alpha also breathes
+    let a = c.alpha * (0.7 + breath * 0.3);
+    
+    fill(HUE[0], HUE[1], HUE[2], a);
+    ellipse(c.x, c.y, size, size);
+    
+    // Inner glow — brighter center, same color
+    let glowA = a * 0.3;
+    let glowSize = size * 0.5;
+    fill(HUE[0] + 40, HUE[1] + 40, HUE[2] + 40, glowA);
+    ellipse(c.x, c.y, glowSize, glowSize);
+  }
+  
+  // Vignette — darken edges with circles (staying on theme!)
+  drawVignette();
+}
+
+function drawVignette() {
+  let cx = width / 2;
+  let cy = height / 2;
+  let maxD = max(width, height) * 0.8;
+  
+  // Rings of increasingly opaque dark circles at edges
+  for (let r = maxD; r > maxD * 0.5; r -= 20) {
+    let steps = floor(r * 0.05);
+    let alpha = map(r, maxD * 0.5, maxD, 0, 8);
+    fill(0, 0, 0, alpha);
+    for (let i = 0; i < steps; i++) {
+      let a = (TWO_PI / steps) * i;
+      ellipse(cx + cos(a) * r, cy + sin(a) * r, 60, 60);
+    }
+  }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  // Rebuild
+  circles = [];
+  setup();
+}
+</script>
+</body>
+</html>

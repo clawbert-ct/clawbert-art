@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🦀 GENUARY Day 3 — Fibonacci Forever</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { overflow: hidden; background: #0a0e1a; width: 100%; height: 100%; }
+canvas { display: block; }
+#info {
+  position: fixed; bottom: 12px; left: 16px;
+  font-family: 'Courier New', monospace; font-size: 12px;
+  color: rgba(255,255,255,0.15); pointer-events: none; z-index: 10;
+}
+</style>
+</head>
+<body>
+<div id="info">GENUARY 2026 · Day 3 · Fibonacci Forever · 🦀 Clawbert</div>
+<script>
+// ── GENUARY Day 3: Fibonacci Forever ──
+// Golden spirals grow endlessly. Seeds arrange in phyllotaxis patterns.
+// The golden angle (137.508°) governs everything — sunflowers, shells, galaxies.
+
+const PHI = (1 + Math.sqrt(5)) / 2;
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+
+let t = 0;
+let seeds = [];
+let seedCount = 0;
+let spiralPoints = [];
+let fibs = [1, 1];
+let bgStars = [];
+
+// Color palette — ocean meets gold
+const COL = {
+  bg: [10, 14, 28],
+  shell1: [60, 140, 200],   // teal-blue
+  shell2: [100, 180, 220],  // light cyan
+  shell3: [180, 130, 70],   // warm gold
+  shell4: [220, 170, 90],   // bright gold
+  glow: [80, 160, 210],
+  seed: [50, 120, 180],
+  goldenSeed: [230, 190, 80],
+  text: [120, 160, 200],
+};
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  pixelDensity(1);
+  noStroke();
+
+  for (let i = 2; i < 25; i++) fibs.push(fibs[i-1] + fibs[i-2]);
+  for (let i = 0; i < 120; i++) {
+    bgStars.push({ x: random(width), y: random(height), s: random(0.5, 2.5), tw: random(1000) });
+  }
+}
+
+function draw() {
+  t += deltaTime * 0.001;
+  background(COL.bg[0], COL.bg[1], COL.bg[2]);
+
+  // Stars
+  for (let s of bgStars) {
+    let tw = sin(t * 1.5 + s.tw) * 0.3 + 0.7;
+    fill(200, 220, 255, 40 * tw);
+    ellipse(s.x, s.y, s.s * tw);
+  }
+
+  // Add seeds using golden angle phyllotaxis
+  if (seedCount < 800 && frameCount % 2 === 0) {
+    seedCount++;
+    let angle = seedCount * GOLDEN_ANGLE;
+    let r = sqrt(seedCount) * min(width, height) * 0.016;
+    seeds.push({
+      x: width/2 + cos(angle) * r,
+      y: height/2 + sin(angle) * r,
+      angle: angle, r: r,
+      size: 0,
+      targetSize: map(r, 0, min(width,height)*0.4, 2, 7),
+      idx: seedCount,
+      isFib: fibs.includes(seedCount),
+      birth: t
+    });
+  }
+
+  // Draw golden spiral (the main attraction)
+  drawGoldenSpiral(width/2, height/2, min(width,height) * 0.38, 0);
+  drawGoldenSpiral(width*0.15, height*0.2, min(width,height)*0.1, 2);
+  drawGoldenSpiral(width*0.85, height*0.82, min(width,height)*0.12, 4.5);
+  drawGoldenSpiral(width*0.8, height*0.15, min(width,height)*0.08, 1.2);
+
+  // Draw seeds
+  drawSeeds();
+
+  // Fibonacci rings
+  drawFibRings();
+
+  // Fibonacci sequence at bottom
+  drawFibNumbers();
+
+  // Phi display
+  fill(COL.text[0], COL.text[1], COL.text[2], 30 + sin(t) * 10);
+  textFont('Courier New');
+  textSize(14);
+  textAlign(RIGHT, TOP);
+  text('φ = ' + PHI.toFixed(10), width - 20, 20);
+}
+
+function drawGoldenSpiral(cx, cy, maxR, phaseOff) {
+  push();
+  translate(cx, cy);
+  let rot = t * 0.08 + phaseOff;
+  rotate(rot);
+
+  // Spiral chambers — filled arcs
+  let numChambers = 30;
+  let growFactor = min(t * 0.3, 1);
+  
+  for (let i = 0; i < numChambers * growFactor; i++) {
+    let a1 = i * 0.5;
+    let a2 = (i + 1) * 0.5;
+    let r1 = pow(PHI, a1 * 0.32) * 2;
+    let r2 = pow(PHI, a2 * 0.32) * 2;
+    if (r2 > maxR) break;
+
+    let frac = i / numChambers;
+    
+    // Chamber fill — alternating warm and cool
+    let pulse = sin(t * 1.5 + i * 0.3) * 0.3 + 0.7;
+    let alpha = (20 + frac * 25) * pulse;
+    
+    if (i % 2 === 0) {
+      fill(COL.shell1[0], COL.shell1[1], COL.shell1[2], alpha);
+    } else {
+      fill(COL.shell3[0], COL.shell3[1], COL.shell3[2], alpha * 0.7);
+    }
+    
+    // Draw chamber as arc segment
+    beginShape();
+    let steps = 15;
+    for (let s = 0; s <= steps; s++) {
+      let a = lerp(a1, a2, s/steps);
+      let r = pow(PHI, a * 0.32) * 2;
+      vertex(cos(a) * r, sin(a) * r);
+    }
+    for (let s = steps; s >= 0; s--) {
+      let a = lerp(a1, a2, s/steps);
+      let r = pow(PHI, a * 0.32) * 2 * 0.65;
+      vertex(cos(a) * r, sin(a) * r);
+    }
+    endShape(CLOSE);
+  }
+
+  // Spiral outline
+  noFill();
+  strokeWeight(2);
+  for (let layer = 0; layer < 2; layer++) {
+    let alph = layer === 0 ? 150 : 40;
+    let sw = layer === 0 ? 1.5 : 3;
+    strokeWeight(sw);
+    
+    beginShape();
+    for (let i = 0; i < 300; i++) {
+      let a = i * 0.08;
+      let r = pow(PHI, a * 0.32) * 2;
+      if (r > maxR * growFactor) break;
+      
+      let frac = r / maxR;
+      let c1 = COL.shell2;
+      let c2 = COL.shell4;
+      let cr = lerp(c1[0], c2[0], frac);
+      let cg = lerp(c1[1], c2[1], frac);
+      let cb = lerp(c1[2], c2[2], frac);
+      
+      stroke(cr, cg, cb, alph * (0.7 + sin(t + a) * 0.3));
+      vertex(cos(a) * r, sin(a) * r);
+    }
+    endShape();
+  }
+  noStroke();
+
+  // Chamber divider lines
+  stroke(COL.shell2[0], COL.shell2[1], COL.shell2[2], 60);
+  strokeWeight(1);
+  for (let i = 1; i < numChambers * growFactor; i++) {
+    let a = i * 0.5;
+    let r1 = pow(PHI, a * 0.32) * 2 * 0.65;
+    let r2 = pow(PHI, a * 0.32) * 2;
+    if (r2 > maxR) break;
+    line(cos(a)*r1, sin(a)*r1, cos(a)*r2, sin(a)*r2);
+  }
+  noStroke();
+
+  // Center glow
+  let gp = sin(t * 1.2) * 0.3 + 0.7;
+  for (let r = 25; r > 0; r -= 1.5) {
+    fill(COL.glow[0], COL.glow[1], COL.glow[2], 6 * gp * (1 - r/25));
+    ellipse(0, 0, r * 2);
+  }
+
+  pop();
+}
+
+function drawSeeds() {
+  for (let seed of seeds) {
+    seed.size += (seed.targetSize - seed.size) * 0.06;
+    let pulse = sin(t * 1.5 + seed.idx * 0.1) * 0.15 + 0.85;
+    let sz = seed.size * pulse;
+
+    // Distance from center
+    let dx = seed.x - width/2;
+    let dy = seed.y - height/2;
+    let dist = sqrt(dx*dx + dy*dy);
+    let mainR = min(width,height) * 0.38;
+
+    // Skip seeds that overlap with main spiral
+    if (dist < mainR * 0.7 && dist > mainR * 0.05) continue;
+
+    if (seed.isFib && seed.idx > 2) {
+      // Golden Fibonacci seeds — special!
+      fill(COL.goldenSeed[0], COL.goldenSeed[1], COL.goldenSeed[2], 40 + sin(t*3+seed.idx)*15);
+      ellipse(seed.x, seed.y, sz * 3);
+      fill(COL.goldenSeed[0], COL.goldenSeed[1], COL.goldenSeed[2], 100);
+      ellipse(seed.x, seed.y, sz * 1.5);
+      // Inner bright core
+      fill(255, 240, 180, 80);
+      ellipse(seed.x, seed.y, sz * 0.6);
+    } else {
+      let alpha = 30 + pulse * 30;
+      let frac = seed.idx / 800;
+      let r = lerp(COL.seed[0], COL.shell1[0], frac);
+      let g = lerp(COL.seed[1], COL.shell1[1], frac);
+      let b = lerp(COL.seed[2], COL.shell1[2], frac);
+      fill(r, g, b, alpha);
+      ellipse(seed.x, seed.y, sz);
+    }
+  }
+}
+
+function drawFibRings() {
+  // Occasional pulse rings at Fibonacci radii
+  let ringAlpha = sin(t * 0.7) * 20 + 20;
+  noFill();
+  strokeWeight(1);
+  for (let i = 5; i < 15; i++) {
+    let r = sqrt(fibs[i]) * min(width,height) * 0.016 * 2;
+    if (r > min(width,height) * 0.5) break;
+    let a = ringAlpha * (0.5 + sin(t * 0.5 + i * 0.8) * 0.5);
+    stroke(COL.glow[0], COL.glow[1], COL.glow[2], a);
+    ellipse(width/2, height/2, r);
+  }
+  noStroke();
+}
+
+function drawFibNumbers() {
+  textFont('Courier New');
+  textAlign(CENTER, CENTER);
+  textSize(12);
+  let yPos = height - 25;
+
+  // Scrolling Fibonacci numbers
+  let offset = (t * 40) % 80;
+  for (let i = 0; i < 18; i++) {
+    let fibIdx = (floor(t * 0.5) + i) % fibs.length;
+    let xPos = i * 80 - offset + 40;
+    if (xPos < -40 || xPos > width + 40) continue;
+    let distCenter = abs(xPos - width/2) / (width/2);
+    let a = (1 - distCenter) * 40;
+    fill(COL.text[0], COL.text[1], COL.text[2], a);
+    text(fibs[fibIdx].toLocaleString(), xPos, yPos);
+  }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  seeds = []; seedCount = 0; bgStars = [];
+  for (let i = 0; i < 120; i++) {
+    bgStars.push({ x: random(width), y: random(height), s: random(0.5, 2.5), tw: random(1000) });
+  }
+}
+</script>
+</body>
+</html>
