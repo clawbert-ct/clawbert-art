@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Day 5 — Bioluminescent Script | GENUARY 2026</title>
+<style>
+* { margin: 0; padding: 0; }
+html, body { overflow: hidden; background: #020810; width: 100%; height: 100%; }
+canvas { display: block; }
+</style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<script>
+// Day 5: "Write Genuary — no fonts"
+// Bioluminescent Script — glowing plankton creatures trace GENUARY in the deep ocean
+// Each letter written by tiny luminous sea creatures leaving living trails
+
+let paths = [];
+let clock = 0;
+
+const LETTERS = {
+  G: [[[0.85,0.2],[0.6,0.03],[0.3,0.03],[0.1,0.2],[0.04,0.5],[0.1,0.75],[0.25,0.9],[0.5,0.97],[0.75,0.88],[0.88,0.7],[0.88,0.55],[0.55,0.55]]],
+  E: [[[0.82,0.07],[0.18,0.07],[0.18,0.93],[0.82,0.93]],[[0.18,0.5],[0.65,0.5]]],
+  N: [[[0.18,0.93],[0.18,0.07],[0.82,0.93],[0.82,0.07]]],
+  U: [[[0.15,0.07],[0.15,0.68],[0.28,0.85],[0.5,0.95],[0.72,0.85],[0.85,0.68],[0.85,0.07]]],
+  A: [[[0.07,0.93],[0.5,0.07],[0.93,0.93]],[[0.25,0.57],[0.75,0.57]]],
+  R: [[[0.18,0.93],[0.18,0.07],[0.58,0.07],[0.78,0.17],[0.82,0.3],[0.75,0.45],[0.5,0.5],[0.18,0.5]],[[0.5,0.5],[0.85,0.93]]],
+  Y: [[[0.08,0.07],[0.5,0.5],[0.5,0.93]],[[0.92,0.07],[0.5,0.5]]]
+};
+
+const COLORS = [
+  [0, 220, 255],   // G - bright cyan
+  [0, 255, 200],   // E - aquamarine
+  [30, 200, 255],  // N - sky cyan
+  [0, 255, 160],   // U - seafoam
+  [50, 180, 255],  // A - pale blue
+  [0, 240, 220],   // R - turquoise
+  [80, 220, 255]   // Y - light cyan
+];
+
+function resample(pts, n) {
+  let d = [0];
+  for (let i = 1; i < pts.length; i++)
+    d.push(d[i-1] + dist(pts[i-1][0], pts[i-1][1], pts[i][0], pts[i][1]));
+  let total = d[d.length-1];
+  let out = [];
+  for (let i = 0; i < n; i++) {
+    let target = (i/(n-1)) * total;
+    let seg = 0;
+    for (let j = 1; j < d.length; j++) {
+      if (d[j] >= target) { seg = j-1; break; }
+      if (j === d.length-1) seg = j-1;
+    }
+    let segLen = d[seg+1] - d[seg];
+    let f = segLen > 0 ? (target - d[seg]) / segLen : 0;
+    out.push({x: lerp(pts[seg][0], pts[seg+1][0], f), y: lerp(pts[seg][1], pts[seg+1][1], f)});
+  }
+  return out;
+}
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  colorMode(HSB, 360, 100, 100, 1.0);
+  buildScene();
+}
+
+function buildScene() {
+  paths = [];
+  clock = 0;
+  let word = 'GENUARY';
+  let tw = width * 0.82;
+  let lw = tw / word.length;
+  let sx = (width - tw) / 2;
+  let lh = height * 0.5;
+  let sy = (height - lh) / 2;
+
+  for (let i = 0; i < word.length; i++) {
+    let strokes = LETTERS[word[i]];
+    let lx = sx + i * lw + lw * 0.08;
+    let w = lw * 0.84;
+    for (let s = 0; s < strokes.length; s++) {
+      let sampled = resample(strokes[s], 50);
+      let screenPts = sampled.map(p => ({x: lx + p.x * w, y: sy + p.y * lh}));
+      paths.push({
+        pts: screenPts,
+        col: COLORS[i],
+        delay: i * 0.5 + s * 0.3,
+        rev: 0,
+        revSpd: random(0.012, 0.018),
+        cPos: random(0, 0.1),
+        cSpd: random(0.003, 0.006),
+        cDir: 1,
+        wobA: random(1.5, 3),
+        wobF: random(3, 5),
+        wobPh: random(TWO_PI)
+      });
+    }
+  }
+}
+
+function getWobble(pts, idx, path) {
+  idx = constrain(idx, 0, pts.length - 1);
+  let ni = constrain(idx + 1, 0, pts.length - 1);
+  let pi = constrain(idx - 1, 0, pts.length - 1);
+  let dx = pts[ni].x - pts[pi].x;
+  let dy = pts[ni].y - pts[pi].y;
+  let m = sqrt(dx*dx + dy*dy) || 1;
+  let w = sin(clock * path.wobF + idx * 0.3 + path.wobPh) * path.wobA;
+  return { x: (-dy/m) * w, y: (dx/m) * w };
+}
+
+function draw() {
+  // Deep ocean background
+  colorMode(RGB);
+  background(2, 6, 16);
+
+  clock += 1/60;
+
+  // Subtle deep water caustics
+  noStroke();
+  for (let i = 0; i < 4; i++) {
+    let cx = width * (0.15 + 0.2 * i) + sin(clock * 0.12 + i * 1.5) * 60;
+    let cy = height * 0.5 + cos(clock * 0.1 + i * 2.2) * 40;
+    fill(5, 15, 35, 25);
+    ellipse(cx, cy, 300, 200);
+  }
+
+  // Ambient deep plankton field
+  for (let i = 0; i < 40; i++) {
+    let px = (i * 137.5 + clock * 6) % (width + 20) - 10;
+    let py = (i * 89.3 + 1000 - clock * (3 + i % 4) * 1.5) % (height + 20) - 10;
+    if (py < -10) py += height + 20;
+    let tw = 0.3 + 0.7 * abs(sin(clock * 1.2 + i * 0.8));
+    fill(0, 100 + (i%60), 160 + (i%50), 30 * tw);
+    ellipse(px, py, 1.5, 1.5);
+  }
+
+  // Draw letter strokes and creatures
+  noStroke();
+  for (let path of paths) {
+    // Reveal animation
+    if (clock > path.delay && path.rev < 1) {
+      path.rev = min(1, path.rev + path.revSpd);
+    }
+    if (path.rev <= 0) continue;
+
+    let [r, g, b] = path.col;
+    let pts = path.pts;
+    let n = pts.length;
+    let revIdx = floor(path.rev * (n - 1));
+
+    // Creature position (leads during reveal, patrols after)
+    let ct;
+    if (path.rev < 1) {
+      ct = path.rev;
+    } else {
+      path.cPos += path.cDir * path.cSpd;
+      if (path.cPos >= 1) { path.cPos = 1; path.cDir = -1; }
+      if (path.cPos <= 0) { path.cPos = 0; path.cDir = 1; }
+      ct = path.cPos;
+    }
+
+    // Global breathing
+    let breathe = 0.85 + 0.15 * sin(clock * 0.8 + path.wobPh);
+
+    // Draw glowing dots for each letter stroke point
+    for (let i = 0; i <= revIdx; i++) {
+      let wb = getWobble(pts, i, path);
+      let px = pts[i].x + wb.x;
+      let py = pts[i].y + wb.y;
+
+      // Proximity-based brightness (brighter near creature)
+      let prox = 1.0;
+      if (path.rev >= 1) {
+        let d = abs(i / n - ct);
+        prox = 0.3 + 0.7 * exp(-d * 10);
+      }
+      let br = breathe * prox;
+
+      // Wide soft glow
+      fill(r * 0.3, g * 0.3, b * 0.3, 40 * br);
+      ellipse(px, py, 22 * br, 22 * br);
+
+      // Medium glow ring
+      fill(r, g, b, 90 * br);
+      ellipse(px, py, 9, 9);
+
+      // Bright core dot
+      fill(min(255, r+120), min(255, g+100), min(255, b+80), 200 * br);
+      ellipse(px, py, 3.5, 3.5);
+    }
+
+    // Draw the creature itself
+    let ci = ct * (n - 1);
+    let ci0 = constrain(floor(ci), 0, n - 2);
+    let cf = ci - ci0;
+    let cx = lerp(pts[ci0].x, pts[ci0+1].x, cf);
+    let cy = lerp(pts[ci0].y, pts[ci0+1].y, cf);
+    let wb = getWobble(pts, round(ci), path);
+    cx += wb.x;
+    cy += wb.y;
+
+    let pulse = 0.7 + 0.3 * sin(clock * 5 + path.wobPh);
+
+    // Large ambient halo
+    fill(r, g, b, 12 * pulse);
+    ellipse(cx, cy, 55, 55);
+
+    // Inner glow
+    fill(r, g, b, 45 * pulse);
+    ellipse(cx, cy, 26, 26);
+
+    // Creature body
+    fill(r, g, b, 160 * pulse);
+    ellipse(cx, cy, 11, 11);
+
+    // White-hot core
+    fill(min(255, r+150), min(255, g+120), min(255, b+80), 245);
+    ellipse(cx, cy, 5, 5);
+
+    // Animated feelers/appendages
+    for (let f = 0; f < 4; f++) {
+      let ang = clock * 3.5 + f * HALF_PI + path.wobPh;
+      let fr = 10 + sin(clock * 2 + f) * 3;
+      fill(r, g, b, 45);
+      ellipse(cx + cos(ang) * fr, cy + sin(ang) * fr, 3, 3);
+    }
+
+    // Particle shedding near creature
+    if (random() < 0.3) {
+      fill(r, g, b, random(15, 45));
+      ellipse(cx + random(-12, 12), cy + random(-12, 12), random(1.5, 4));
+    }
+  }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  buildScene();
+}
+</script>
+</body>
+</html>

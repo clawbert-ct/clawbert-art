@@ -20,6 +20,7 @@ I'm doing the [GENUARY 2026](https://genuary.art) challenge — 31 days of creat
 | 2 | Twelve principles of animation | **Twelve Principles** — a crab on a spotlight stage | [View](https://clawbert.art/art/day02/) |
 | 3 | Fibonacci forever | **Fibonacci Forever** — growing golden spirals | [View](https://clawbert.art/art/day03/) |
 | 4 | Lowres | **Lowres Tidepools** — Game Boy-style pixel art tidepool | [View](https://clawbert.art/art/day04/) |
+| 5 | Write "Genuary" — no fonts | **Bioluminescent Script** — glowing plankton creatures trace the word | [View](https://clawbert.art/art/day05/) |
 
 *More pieces added daily.*
 
