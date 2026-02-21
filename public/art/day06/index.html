@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Day 6 — Lights On/Off | GENUARY 2026</title>
+<style>
+* { margin: 0; padding: 0; }
+html, body { overflow: hidden; background: #000; width: 100%; height: 100%; cursor: pointer; }
+canvas { display: block; }
+</style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<script>
+// Day 6: "Lights on/off"
+// An underwater cave. Click to toggle a diver's flashlight.
+// In the dark: bioluminescent creatures glow, eyes shine, living light pulses.
+// Lights on: the flashlight reveals the cave's true colors — coral, rock, hidden creatures.
+// Two worlds, same place.
+
+let lightsOn = false;
+let lightTransition = 0; // 0 = dark, 1 = full light
+let flashlightX, flashlightY;
+let targetFX, targetFY;
+let creatures = [];
+let corals = [];
+let particles = [];
+let rockFormations = [];
+let eyePairs = [];
+let rippleTime = 0;
+let jellyfish = [];
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  colorMode(HSB, 360, 100, 100, 100);
+  flashlightX = width / 2;
+  flashlightY = height / 2;
+  targetFX = flashlightX;
+  targetFY = flashlightY;
+  
+  // Generate cave corals along the bottom and sides
+  for (let i = 0; i < 40; i++) {
+    corals.push({
+      x: random(width),
+      y: random(height * 0.65, height),
+      type: floor(random(4)),
+      size: random(20, 60),
+      hue: random([340, 15, 30, 280, 180, 50]),
+      sway: random(TWO_PI),
+      swaySpeed: random(0.005, 0.02),
+      branches: floor(random(3, 8))
+    });
+  }
+  
+  // Side corals
+  for (let i = 0; i < 15; i++) {
+    corals.push({
+      x: random() < 0.5 ? random(0, width * 0.15) : random(width * 0.85, width),
+      y: random(height * 0.3, height),
+      type: floor(random(4)),
+      size: random(15, 45),
+      hue: random([340, 15, 200, 280]),
+      sway: random(TWO_PI),
+      swaySpeed: random(0.005, 0.02),
+      branches: floor(random(3, 7))
+    });
+  }
+  
+  // Bioluminescent creatures (small swimming things)
+  for (let i = 0; i < 25; i++) {
+    creatures.push({
+      x: random(width),
+      y: random(height * 0.1, height * 0.75),
+      vx: random(-0.5, 0.5),
+      vy: random(-0.3, 0.3),
+      size: random(3, 10),
+      glowHue: random([180, 200, 160, 280, 120]),
+      glowPhase: random(TWO_PI),
+      glowSpeed: random(0.02, 0.06),
+      trail: []
+    });
+  }
+  
+  // Floating particles (plankton/detritus)
+  for (let i = 0; i < 120; i++) {
+    particles.push({
+      x: random(width),
+      y: random(height),
+      size: random(1, 4),
+      drift: random(TWO_PI),
+      speed: random(0.1, 0.4),
+      bright: random(30, 80)
+    });
+  }
+  
+  // Hidden eye pairs in the dark
+  for (let i = 0; i < 8; i++) {
+    eyePairs.push({
+      x: random(width * 0.1, width * 0.9),
+      y: random(height * 0.15, height * 0.6),
+      gap: random(8, 20),
+      size: random(3, 7),
+      blinkTimer: random(200, 600),
+      blinkCount: 0,
+      isBlinking: false,
+      blinkDuration: 0,
+      hue: random([50, 30, 120, 60]),
+      lookX: 0,
+      lookY: 0
+    });
+  }
+  
+  // Jellyfish
+  for (let i = 0; i < 5; i++) {
+    jellyfish.push({
+      x: random(width * 0.1, width * 0.9),
+      y: random(height * 0.05, height * 0.5),
+      size: random(25, 55),
+      hue: random([200, 280, 310, 170]),
+      phase: random(TWO_PI),
+      pulseSpeed: random(0.015, 0.035),
+      driftX: random(-0.2, 0.2),
+      driftY: random(-0.15, 0.05),
+      tentacles: floor(random(5, 10)),
+      tentacleLen: random(40, 90)
+    });
+  }
+  
+  // Rock formations (ceiling stalactites and floor stalagmites)
+  for (let i = 0; i < 12; i++) {
+    rockFormations.push({
+      x: random(width),
+      fromTop: random() < 0.5,
+      width: random(20, 60),
+      height: random(30, 120),
+      jaggedness: random(0.2, 0.6)
+    });
+  }
+}
+
+function draw() {
+  rippleTime += 0.01;
+  
+  // Transition smoothing
+  let targetLight = lightsOn ? 1 : 0;
+  lightTransition = lerp(lightTransition, targetLight, 0.04);
+  
+  // Flashlight follows mouse smoothly
+  targetFX = mouseX;
+  targetFY = mouseY;
+  flashlightX = lerp(flashlightX, targetFX, 0.08);
+  flashlightY = lerp(flashlightY, targetFY, 0.08);
+  
+  // Background
+  let bgDark = color(220, 80, 2);
+  let bgLight = color(205, 55, 22);
+  background(lerpColor(bgDark, bgLight, lightTransition));
+  
+  // Water caustics when lights on
+  if (lightTransition > 0.05) {
+    drawCaustics();
+  }
+  
+  // Rock formations
+  drawRocks();
+  
+  // Draw corals
+  for (let c of corals) {
+    drawCoral(c);
+  }
+  
+  // Draw jellyfish
+  for (let j of jellyfish) {
+    updateJellyfish(j);
+    drawJellyfish(j);
+  }
+  
+  // Draw creatures
+  for (let c of creatures) {
+    updateCreature(c);
+    drawCreature(c);
+  }
+  
+  // Draw eye pairs (visible in dark)
+  if (lightTransition < 0.8) {
+    for (let e of eyePairs) {
+      drawEyes(e);
+    }
+  }
+  
+  // Particles
+  for (let p of particles) {
+    updateParticle(p);
+    drawParticle(p);
+  }
+  
+  // Flashlight cone when on
+  if (lightTransition > 0.05) {
+    drawFlashlight();
+  }
+  
+  // Vignette (always, stronger in dark)
+  drawVignette();
+  
+  // Instruction text
+  drawInstruction();
+}
+
+function drawCaustics() {
+  push();
+  blendMode(ADD);
+  noStroke();
+  for (let i = 0; i < 15; i++) {
+    let cx = width * noise(i * 0.5, rippleTime * 0.3);
+    let cy = height * noise(i * 0.5 + 100, rippleTime * 0.3);
+    let sz = noise(i * 0.3, rippleTime * 0.2) * 200 + 50;
+    fill(190, 40, 8 * lightTransition, 6 * lightTransition);
+    ellipse(cx, cy, sz, sz * 0.6);
+  }
+  blendMode(BLEND);
+  pop();
+}
+
+function drawRocks() {
+  for (let r of rockFormations) {
+    push();
+    let litAmount = getIllumination(r.x, r.fromTop ? 0 : height);
+    let rockBright = lerp(5, 25, litAmount);
+    fill(30, 30, rockBright);
+    noStroke();
+    beginShape();
+    if (r.fromTop) {
+      vertex(r.x - r.width / 2, 0);
+      for (let j = 0; j <= 6; j++) {
+        let t = j / 6;
+        let px = r.x - r.width / 2 + t * r.width;
+        let py = r.height * (1 - abs(t - 0.5) * 2) + sin(t * 10 + r.jaggedness * 50) * r.width * r.jaggedness * 0.3;
+        vertex(px, py);
+      }
+      vertex(r.x + r.width / 2, 0);
+    } else {
+      vertex(r.x - r.width / 2, height);
+      for (let j = 0; j <= 6; j++) {
+        let t = j / 6;
+        let px = r.x - r.width / 2 + t * r.width;
+        let py = height - r.height * (1 - abs(t - 0.5) * 2) - sin(t * 10 + r.jaggedness * 50) * r.width * r.jaggedness * 0.3;
+        vertex(px, py);
+      }
+      vertex(r.x + r.width / 2, height);
+    }
+    endShape(CLOSE);
+    pop();
+  }
+}
+
+function drawCoral(c) {
+  push();
+  translate(c.x, c.y);
+  let sway = sin(frameCount * c.swaySpeed + c.sway) * 3;
+  let litAmount = getIllumination(c.x, c.y);
+  
+  if (c.type === 0) {
+    // Branching coral
+    for (let i = 0; i < c.branches; i++) {
+      let angle = -HALF_PI + (i - c.branches / 2) * 0.3 + sway * 0.02;
+      drawBranch(0, 0, angle, c.size, 3, c.hue, litAmount);
+    }
+  } else if (c.type === 1) {
+    // Fan coral
+    noFill();
+    for (let i = 0; i < c.branches; i++) {
+      let angle = -HALF_PI + (i - c.branches / 2) * 0.25 + sway * 0.015;
+      let brite = lerp(15, 60, litAmount);
+      let sat = lerp(30, 80, litAmount);
+      stroke(c.hue, sat, brite, 70);
+      strokeWeight(1.5);
+      let ex = cos(angle) * c.size;
+      let ey = sin(angle) * c.size;
+      bezier(0, 0, ex * 0.3, ey * 0.3, ex * 0.7 + sway, ey * 0.5, ex + sway, ey);
+    }
+  } else if (c.type === 2) {
+    // Tube coral
+    for (let i = 0; i < c.branches; i++) {
+      let tx = (i - c.branches / 2) * 6;
+      let th = c.size * random(0.5, 1);
+      let brite = lerp(12, 55, litAmount);
+      stroke(c.hue, lerp(40, 70, litAmount), brite);
+      strokeWeight(3);
+      noFill();
+      line(tx, 0, tx + sway, -th);
+      // Tip glow in dark
+      if (lightTransition < 0.5) {
+        noStroke();
+        fill(c.hue, 60, 70, 30 * (1 - lightTransition));
+        ellipse(tx + sway, -th, 5, 5);
+      }
+    }
+  } else {
+    // Anemone
+    for (let i = 0; i < c.branches + 4; i++) {
+      let angle = -HALF_PI + sin(frameCount * 0.01 + i) * 0.5 + (i - c.branches / 2) * 0.2;
+      let len = c.size * (0.5 + 0.5 * sin(i * 1.5));
+      let brite = lerp(15, 60, litAmount);
+      stroke(c.hue, lerp(50, 80, litAmount), brite, 60);
+      strokeWeight(2);
+      noFill();
+      let cx1 = cos(angle) * len * 0.5 + sway;
+      let cy1 = sin(angle) * len * 0.5;
+      let ex = cos(angle) * len + sway * 2;
+      let ey = sin(angle) * len;
+      bezier(0, 0, cx1, cy1, cx1, ey, ex, ey);
+      // Glowing tip
+      if (lightTransition < 0.6) {
+        noStroke();
+        let glow = (sin(frameCount * 0.03 + i) * 0.5 + 0.5) * (1 - lightTransition);
+        fill(c.hue, 50, 80, 30 * glow);
+        ellipse(ex, ey, 6, 6);
+      }
+    }
+  }
+  pop();
+}
+
+function drawBranch(x, y, angle, len, depth, hue, litAmount) {
+  if (depth <= 0 || len < 4) return;
+  let ex = x + cos(angle) * len;
+  let ey = y + sin(angle) * len;
+  let brite = lerp(12, 55, litAmount);
+  stroke(hue, lerp(40, 75, litAmount), brite, 80);
+  strokeWeight(depth * 0.8);
+  line(x, y, ex, ey);
+  
+  // Glow tips in dark
+  if (depth <= 1 && lightTransition < 0.5) {
+    noStroke();
+    fill(hue, 60, 80, 25 * (1 - lightTransition));
+    ellipse(ex, ey, 4, 4);
+  }
+  
+  drawBranch(ex, ey, angle - 0.4, len * 0.65, depth - 1, hue, litAmount);
+  drawBranch(ex, ey, angle + 0.3, len * 0.6, depth - 1, hue, litAmount);
+}
+
+function updateCreature(c) {
+  c.x += c.vx;
+  c.y += c.vy;
+  c.vx += random(-0.03, 0.03);
+  c.vy += random(-0.02, 0.02);
+  c.vx = constrain(c.vx, -1, 1);
+  c.vy = constrain(c.vy, -0.6, 0.6);
+  
+  // Flee from flashlight when on
+  if (lightTransition > 0.3) {
+    let d = dist(c.x, c.y, flashlightX, flashlightY);
+    if (d < 150) {
+      let angle = atan2(c.y - flashlightY, c.x - flashlightX);
+      c.vx += cos(angle) * 0.15 * lightTransition;
+      c.vy += sin(angle) * 0.1 * lightTransition;
+    }
+  }
+  
+  if (c.x < -20) c.x = width + 20;
+  if (c.x > width + 20) c.x = -20;
+  if (c.y < 10) c.vy += 0.05;
+  if (c.y > height * 0.8) c.vy -= 0.05;
+  
+  c.trail.push({ x: c.x, y: c.y });
+  if (c.trail.length > 20) c.trail.shift();
+}
+
+function drawCreature(c) {
+  let glow = sin(frameCount * c.glowSpeed + c.glowPhase) * 0.5 + 0.5;
+  let litAmount = getIllumination(c.x, c.y);
+  
+  // In dark: bioluminescent glow
+  // In light: visible body, no glow
+  push();
+  
+  // Trail (dark only)
+  if (lightTransition < 0.7) {
+    noFill();
+    let trailAlpha = 15 * (1 - lightTransition) * glow;
+    stroke(c.glowHue, 60, 80, trailAlpha);
+    strokeWeight(1);
+    beginShape();
+    for (let t of c.trail) {
+      vertex(t.x, t.y);
+    }
+    endShape();
+  }
+  
+  // Body
+  noStroke();
+  if (lightTransition < 0.5) {
+    // Bioluminescent
+    let glowSize = c.size * (1.5 + glow);
+    fill(c.glowHue, 50, 80, 15 * (1 - lightTransition));
+    ellipse(c.x, c.y, glowSize * 3, glowSize * 3);
+    fill(c.glowHue, 40, 90, 40 * (1 - lightTransition));
+    ellipse(c.x, c.y, glowSize * 1.5, glowSize * 1.5);
+    fill(c.glowHue, 20, 100, 70);
+    ellipse(c.x, c.y, c.size, c.size);
+  }
+  
+  if (lightTransition > 0.2) {
+    // Revealed body
+    let bodyBright = lerp(30, 60, litAmount);
+    fill(c.glowHue, 50, bodyBright, 70 * lightTransition);
+    ellipse(c.x, c.y, c.size * 1.2, c.size * 0.8);
+    // Little eye
+    fill(0, 0, 90, 50 * lightTransition);
+    let eyeOff = c.vx > 0 ? 1 : -1;
+    ellipse(c.x + eyeOff * c.size * 0.3, c.y - c.size * 0.1, 2, 2);
+  }
+  
+  pop();
+}
+
+function drawJellyfish(j) {
+  let pulse = sin(frameCount * j.pulseSpeed + j.phase);
+  let litAmount = getIllumination(j.x, j.y);
+  
+  push();
+  translate(j.x, j.y);
+  
+  let bellW = j.size * (1 + pulse * 0.15);
+  let bellH = j.size * 0.65 * (1 - pulse * 0.1);
+  
+  // Glow in dark
+  if (lightTransition < 0.7) {
+    let glowAlpha = 12 * (1 - lightTransition) * (pulse * 0.3 + 0.7);
+    noStroke();
+    fill(j.hue, 40, 70, glowAlpha);
+    ellipse(0, 0, bellW * 3, bellH * 3);
+    fill(j.hue, 50, 80, glowAlpha * 1.5);
+    ellipse(0, 0, bellW * 2, bellH * 2);
+  }
+  
+  // Bell
+  let bellBright = lerp(25, 55, litAmount);
+  let bellAlpha = lerp(40, 65, lightTransition);
+  noStroke();
+  fill(j.hue, lerp(30, 60, litAmount), bellBright, bellAlpha);
+  arc(0, 0, bellW, bellH * 2, PI, TWO_PI, CHORD);
+  
+  // Inner details when lit
+  if (lightTransition > 0.3) {
+    fill(j.hue, 50, bellBright + 10, 20 * lightTransition);
+    arc(0, 2, bellW * 0.6, bellH * 1.2, PI, TWO_PI, CHORD);
+  }
+  
+  // Tentacles
+  stroke(j.hue, lerp(30, 55, litAmount), lerp(30, 50, litAmount), lerp(25, 45, lightTransition));
+  strokeWeight(1.2);
+  noFill();
+  for (let t = 0; t < j.tentacles; t++) {
+    let tx = map(t, 0, j.tentacles - 1, -bellW * 0.4, bellW * 0.4);
+    beginShape();
+    vertex(tx, 0);
+    for (let s = 1; s <= 5; s++) {
+      let sy = s * j.tentacleLen / 5;
+      let sx = tx + sin(frameCount * 0.02 + t + s * 0.8) * 12;
+      vertex(sx, sy);
+    }
+    endShape();
+    
+    // Tentacle glow spots in dark
+    if (lightTransition < 0.5) {
+      noStroke();
+      for (let s = 1; s <= 3; s++) {
+        let sy = s * j.tentacleLen / 4;
+        let sx = tx + sin(frameCount * 0.02 + t + s * 0.8) * 12;
+        let spotGlow = sin(frameCount * 0.05 + t + s) * 0.5 + 0.5;
+        fill(j.hue, 50, 90, 20 * spotGlow * (1 - lightTransition));
+        ellipse(sx, sy, 4, 4);
+      }
+      stroke(j.hue, lerp(30, 55, litAmount), lerp(30, 50, litAmount), lerp(25, 45, lightTransition));
+      strokeWeight(1.2);
+      noFill();
+    }
+  }
+  
+  pop();
+}
+
+function updateJellyfish(j) {
+  let pulse = sin(frameCount * j.pulseSpeed + j.phase);
+  j.y += j.driftY - pulse * 0.3;
+  j.x += j.driftX + sin(frameCount * 0.005 + j.phase) * 0.2;
+  
+  if (j.y < -j.tentacleLen - j.size) j.y = height + j.size;
+  if (j.y > height + j.size + j.tentacleLen) j.y = -j.tentacleLen;
+  if (j.x < -j.size) j.x = width + j.size;
+  if (j.x > width + j.size) j.x = -j.size;
+}
+
+function drawEyes(e) {
+  // Blinking logic
+  e.blinkCount++;
+  if (!e.isBlinking && e.blinkCount > e.blinkTimer) {
+    e.isBlinking = true;
+    e.blinkDuration = 0;
+    e.blinkCount = 0;
+    e.blinkTimer = random(200, 500);
+  }
+  if (e.isBlinking) {
+    e.blinkDuration++;
+    if (e.blinkDuration > 8) e.isBlinking = false;
+  }
+  
+  if (e.isBlinking) return;
+  
+  // Look toward mouse
+  let lookAngle = atan2(mouseY - e.y, mouseX - e.x);
+  e.lookX = lerp(e.lookX, cos(lookAngle) * 1.5, 0.05);
+  e.lookY = lerp(e.lookY, sin(lookAngle) * 1.5, 0.05);
+  
+  let alpha = map(lightTransition, 0, 0.8, 60, 0);
+  if (alpha <= 0) return;
+  
+  // Hide if flashlight is directly on them
+  let dToLight = dist(e.x, e.y, flashlightX, flashlightY);
+  if (lightTransition > 0.3 && dToLight < 120) {
+    alpha *= map(dToLight, 40, 120, 0, 1, true);
+  }
+  
+  push();
+  noStroke();
+  // Outer glow
+  fill(e.hue, 60, 70, alpha * 0.3);
+  ellipse(e.x - e.gap / 2, e.y, e.size * 3, e.size * 3);
+  ellipse(e.x + e.gap / 2, e.y, e.size * 3, e.size * 3);
+  // Eyes
+  fill(e.hue, 70, 85, alpha);
+  ellipse(e.x - e.gap / 2, e.y, e.size, e.size * 1.3);
+  ellipse(e.x + e.gap / 2, e.y, e.size, e.size * 1.3);
+  // Pupils
+  fill(0, 0, 10, alpha);
+  ellipse(e.x - e.gap / 2 + e.lookX, e.y + e.lookY, e.size * 0.45, e.size * 0.55);
+  ellipse(e.x + e.gap / 2 + e.lookX, e.y + e.lookY, e.size * 0.45, e.size * 0.55);
+  pop();
+}
+
+function updateParticle(p) {
+  p.drift += 0.005;
+  p.x += sin(p.drift) * p.speed * 0.5;
+  p.y += cos(p.drift * 0.7) * p.speed * 0.3 - 0.05;
+  if (p.y < -5) p.y = height + 5;
+  if (p.x < -5) p.x = width + 5;
+  if (p.x > width + 5) p.x = -5;
+}
+
+function drawParticle(p) {
+  let litAmount = getIllumination(p.x, p.y);
+  push();
+  noStroke();
+  if (lightTransition < 0.5) {
+    // Faint sparkle in dark
+    let sparkle = sin(frameCount * 0.05 + p.drift * 10) * 0.5 + 0.5;
+    fill(200, 30, p.bright * 0.3, 15 * sparkle * (1 - lightTransition));
+    ellipse(p.x, p.y, p.size, p.size);
+  }
+  if (lightTransition > 0.2) {
+    // Visible detritus in light
+    let bri = lerp(10, 40, litAmount);
+    fill(40, 20, bri, 30 * lightTransition);
+    ellipse(p.x, p.y, p.size * 0.8, p.size * 0.8);
+  }
+  pop();
+}
+
+function drawFlashlight() {
+  // Bright volumetric flashlight beam
+  push();
+  
+  // First: darken everything outside the beam using overlay
+  // Create a radial mask effect
+  let beamRadius = 280;
+  
+  blendMode(ADD);
+  noStroke();
+  
+  let layers = 20;
+  for (let i = layers; i > 0; i--) {
+    let r = beamRadius * (i / layers);
+    let alpha = 8 * lightTransition * (1 - (i / layers) * 0.7);
+    fill(50, 20, 60, alpha);
+    ellipse(flashlightX, flashlightY, r * 2, r * 1.8);
+  }
+  
+  // Hot center — really bright
+  for (let i = 0; i < 5; i++) {
+    let r = 120 - i * 20;
+    fill(45, 10, 70, 10 * lightTransition);
+    ellipse(flashlightX, flashlightY, r, r);
+  }
+  fill(40, 5, 90, 8 * lightTransition);
+  ellipse(flashlightX, flashlightY, 40, 40);
+  
+  blendMode(BLEND);
+  pop();
+}
+
+function getIllumination(x, y) {
+  if (lightTransition < 0.01) return 0;
+  let d = dist(x, y, flashlightX, flashlightY);
+  let falloff = map(d, 0, 350, 1, 0, true);
+  // Ambient light boost when lights on (even far from beam)
+  let ambient = lightTransition * 0.15;
+  return min(1, falloff * lightTransition + ambient);
+}
+
+function drawVignette() {
+  push();
+  noFill();
+  let vigStrength = lerp(90, 40, lightTransition);
+  for (let i = 0; i < 40; i++) {
+    let alpha = map(i, 0, 40, 0, vigStrength);
+    stroke(220, 80, 2, alpha * 0.7);
+    strokeWeight(width * 0.03);
+    let inset = i * width * 0.015;
+    rect(-inset, -inset, width + inset * 2, height + inset * 2, 0);
+  }
+  pop();
+}
+
+function drawInstruction() {
+  push();
+  let alpha = max(0, 40 - frameCount * 0.1);
+  if (alpha > 0) {
+    textAlign(CENTER);
+    textSize(14);
+    noStroke();
+    fill(0, 0, 70, alpha);
+    text("click to toggle lights", width / 2, height - 30);
+  }
+  pop();
+}
+
+function mousePressed() {
+  lightsOn = !lightsOn;
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+</script>
+</body>
+</html>
