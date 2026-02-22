@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 7: Boolean Algebra — Circuit Garden</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a12; overflow: hidden; cursor: pointer; }
+canvas { display: block; }
+#info {
+  position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+  color: rgba(100,200,220,0.5); font: 11px/1.4 'Courier New', monospace;
+  text-align: center; pointer-events: none; letter-spacing: 1px;
+}
+</style>
+</head>
+<body>
+<div id="info">click inputs to toggle · watch logic cascade · day 7: boolean algebra</div>
+<script>
+// === BOOLEAN CIRCUIT GARDEN ===
+// Genuary 2026 Day 7 — clawbert.art
+
+const TRUE_COL  = [0, 240, 255];   // cyan
+const FALSE_COL = [20, 25, 50];    // deep navy
+const GATE_COLS = {
+  'INPUT': [0, 200, 180],
+  'AND':   [180, 60, 255],
+  'OR':    [60, 180, 255],
+  'NOT':   [255, 80, 160],
+  'XOR':   [255, 180, 40],
+  'OUTPUT':[0, 255, 160]
+};
+
+let nodes = [];
+let connections = [];
+let particles = [];
+let t = 0;
+
+class GateNode {
+  constructor(x, y, type, label, id) {
+    this.x = x; this.y = y;
+    this.type = type;
+    this.label = label;
+    this.id = id;
+    this.inputs = [];
+    this.output = false;
+    this.displayVal = 0; // animated 0-1
+    this.prevOutput = false;
+    this.flashTimer = 0;
+    this.radius = type === 'INPUT' || type === 'OUTPUT' ? 28 : 24;
+    this.pulsePhase = random(TWO_PI);
+  }
+
+  evaluate() {
+    let prev = this.output;
+    switch(this.type) {
+      case 'INPUT': break; // manual
+      case 'AND':
+        this.output = this.inputs.length >= 2 && this.inputs.every(n => n.output);
+        break;
+      case 'OR':
+        this.output = this.inputs.some(n => n.output);
+        break;
+      case 'NOT':
+        this.output = this.inputs.length > 0 ? !this.inputs[0].output : false;
+        break;
+      case 'XOR':
+        this.output = this.inputs.length >= 2 ?
+          (this.inputs[0].output !== this.inputs[1].output) : false;
+        break;
+      case 'OUTPUT':
+        this.output = this.inputs.length > 0 ? this.inputs[0].output : false;
+        break;
+    }
+    if (this.output !== prev) {
+      this.flashTimer = 1.0;
+      // spawn particles on connections leading FROM this node
+      for (let c of connections) {
+        if (c.from === this) spawnParticles(c, this.output);
+      }
+    }
+  }
+
+  draw() {
+    let targetVal = this.output ? 1 : 0;
+    this.displayVal = lerp(this.displayVal, targetVal, 0.08);
+    this.flashTimer = max(0, this.flashTimer - 0.02);
+
+    let v = this.displayVal;
+    let col = GATE_COLS[this.type] || [150,150,150];
+    let pulse = sin(t * 2 + this.pulsePhase) * 0.15 + 0.85;
+
+    push();
+    translate(this.x, this.y);
+
+    // Outer glow
+    let glowAlpha = (40 + v * 120) * pulse;
+    let glowSize = this.radius * (2.5 + v * 1.5 + this.flashTimer * 2);
+    for (let i = 3; i > 0; i--) {
+      noStroke();
+      fill(col[0], col[1], col[2], glowAlpha * (i/3) * 0.3);
+      ellipse(0, 0, glowSize * (i/3) * 2);
+    }
+
+    // Flash ring
+    if (this.flashTimer > 0) {
+      noFill();
+      stroke(255, 255, 255, this.flashTimer * 200);
+      strokeWeight(2);
+      ellipse(0, 0, this.radius * 2 + (1 - this.flashTimer) * 60);
+    }
+
+    // Body
+    let bodyR = lerp(FALSE_COL[0], col[0], v * 0.8);
+    let bodyG = lerp(FALSE_COL[1], col[1], v * 0.8);
+    let bodyB = lerp(FALSE_COL[2], col[2], v * 0.8);
+
+    // Organic shape — slightly wobbly circle
+    noStroke();
+    fill(bodyR, bodyG, bodyB, 200 + v * 55);
+    beginShape();
+    for (let a = 0; a < TWO_PI; a += 0.15) {
+      let wobble = noise(this.id * 10 + a * 2, t * 0.5) * 6 - 3;
+      let r = this.radius + wobble;
+      vertex(cos(a) * r, sin(a) * r);
+    }
+    endShape(CLOSE);
+
+    // Inner bright core
+    fill(col[0], col[1], col[2], v * 180);
+    ellipse(0, 0, this.radius * 0.7);
+    fill(255, 255, 255, v * 100);
+    ellipse(0, 0, this.radius * 0.3);
+
+    // Label
+    fill(255, 255, 255, 140 + v * 80);
+    noStroke();
+    textAlign(CENTER, CENTER);
+    textSize(this.type === 'INPUT' ? 11 : 9);
+    textFont('Courier New');
+    text(this.label, 0, 0);
+
+    // For inputs, show clickable indicator
+    if (this.type === 'INPUT') {
+      noFill();
+      stroke(col[0], col[1], col[2], 60 + v * 80);
+      strokeWeight(1);
+      let dotR = this.radius + 8 + sin(t * 3 + this.pulsePhase) * 3;
+      ellipse(0, 0, dotR * 2);
+    }
+
+    pop();
+  }
+
+  contains(mx, my) {
+    return dist(mx, my, this.x, this.y) < this.radius + 15;
+  }
+}
+
+function spawnParticles(conn, val) {
+  let count = 5;
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      conn: conn,
+      progress: -i * 0.08,
+      val: val,
+      offset: random(-8, 8),
+      size: random(3, 7),
+      life: 1
+    });
+  }
+}
+
+function buildCircuit() {
+  nodes = [];
+  connections = [];
+  let w = width, h = height;
+  let cx = w/2, cy = h/2;
+
+  // Layout: 4 inputs → gates → outputs
+  // Spread across 5 columns
+  let cols = [cx - w*0.35, cx - w*0.15, cx + w*0.05, cx + w*0.2, cx + w*0.38];
+  let rowH = h * 0.18;
+
+  // Inputs (column 0)
+  let A = new GateNode(cols[0], cy - rowH*1.5, 'INPUT', 'A', 0);
+  let B = new GateNode(cols[0], cy - rowH*0.5, 'INPUT', 'B', 1);
+  let C = new GateNode(cols[0], cy + rowH*0.5, 'INPUT', 'C', 2);
+  let D = new GateNode(cols[0], cy + rowH*1.5, 'INPUT', 'D', 3);
+
+  // Layer 1 gates (column 1)
+  let andAB  = new GateNode(cols[1], cy - rowH, 'AND', 'AND', 4);
+  let orCD   = new GateNode(cols[1], cy + rowH, 'OR', 'OR', 5);
+  let notA   = new GateNode(cols[1], cy, 'NOT', 'NOT', 6);
+
+  // Layer 2 gates (column 2)
+  let xorMid = new GateNode(cols[2], cy - rowH*0.5, 'XOR', 'XOR', 7);
+  let andMid = new GateNode(cols[2], cy + rowH*0.7, 'AND', 'AND', 8);
+
+  // Layer 3 (column 3)
+  let orFinal = new GateNode(cols[3], cy, 'OR', 'OR', 9);
+  let notBot  = new GateNode(cols[3], cy + rowH, 'NOT', 'NOT', 10);
+
+  // Outputs (column 4)
+  let out1 = new GateNode(cols[4], cy - rowH*0.3, 'OUTPUT', 'Q1', 11);
+  let out2 = new GateNode(cols[4], cy + rowH*0.7, 'OUTPUT', 'Q2', 12);
+
+  // Wire inputs
+  andAB.inputs = [A, B];
+  notA.inputs = [B];
+  orCD.inputs = [C, D];
+  xorMid.inputs = [andAB, notA];
+  andMid.inputs = [notA, orCD];
+  orFinal.inputs = [xorMid, andMid];
+  notBot.inputs = [andMid];
+  out1.inputs = [orFinal];
+  out2.inputs = [notBot];
+
+  nodes = [A, B, C, D, andAB, orCD, notA, xorMid, andMid, orFinal, notBot, out1, out2];
+
+  // Build connection list
+  for (let n of nodes) {
+    for (let inp of n.inputs) {
+      connections.push({ from: inp, to: n });
+    }
+  }
+
+  // Initial state
+  A.output = true;
+  D.output = true;
+}
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  pixelDensity(1);
+  buildCircuit();
+  // Initial evaluation cascade
+  for (let i = 0; i < 5; i++) {
+    for (let n of nodes) n.evaluate();
+  }
+}
+
+function draw() {
+  t += 0.016;
+
+  // Background with subtle fade (trails)
+  background(10, 10, 18, 40);
+  // Full bg every ~2s to prevent buildup
+  if (frameCount % 120 === 0) background(10, 10, 18);
+
+  // Evaluate circuit
+  for (let n of nodes) n.evaluate();
+
+  // Draw connections
+  for (let c of connections) {
+    drawConnection(c);
+  }
+
+  // Draw particles
+  updateParticles();
+
+  // Draw ambient floating spores
+  drawSpores();
+
+  // Draw nodes
+  for (let n of nodes) n.draw();
+}
+
+function drawConnection(c) {
+  let fromVal = c.from.displayVal || 0;
+  let toVal = c.to.displayVal || 0;
+  let v = (fromVal + toVal) / 2;
+
+  let col = lerpColor(
+    color(FALSE_COL[0], FALSE_COL[1], FALSE_COL[2]),
+    color(TRUE_COL[0], TRUE_COL[1], TRUE_COL[2]),
+    v
+  );
+
+  // Bezier curve
+  let x1 = c.from.x, y1 = c.from.y;
+  let x2 = c.to.x, y2 = c.to.y;
+  let mx = (x1 + x2) / 2;
+
+  // Glow layer
+  noFill();
+  stroke(red(col), green(col), blue(col), 15 + v * 40);
+  strokeWeight(6 + v * 4);
+  bezier(x1, y1, mx, y1, mx, y2, x2, y2);
+
+  // Core line
+  stroke(red(col), green(col), blue(col), 60 + v * 140);
+  strokeWeight(1.5 + v * 1.5);
+  bezier(x1, y1, mx, y1, mx, y2, x2, y2);
+
+  // Traveling signal dots
+  if (c.from.output) {
+    let dotCount = 3;
+    for (let i = 0; i < dotCount; i++) {
+      let prog = ((t * 0.4 + i / dotCount) % 1);
+      let px = bezierPoint(x1, mx, mx, x2, prog);
+      let py = bezierPoint(y1, y1, y2, y2, prog);
+      noStroke();
+      fill(TRUE_COL[0], TRUE_COL[1], TRUE_COL[2], 100 + sin(prog * PI) * 100);
+      ellipse(px, py, 4 + sin(prog * PI) * 3);
+    }
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    let p = particles[i];
+    p.progress += 0.02;
+    p.life -= 0.008;
+
+    if (p.progress > 0 && p.progress < 1 && p.life > 0) {
+      let c = p.conn;
+      let x1 = c.from.x, y1 = c.from.y;
+      let x2 = c.to.x, y2 = c.to.y;
+      let mx = (x1 + x2) / 2;
+      let px = bezierPoint(x1, mx, mx, x2, p.progress);
+      let py = bezierPoint(y1, y1, y2, y2, p.progress) + p.offset * sin(p.progress * PI);
+
+      let col = p.val ? TRUE_COL : [100, 40, 60];
+      noStroke();
+      fill(col[0], col[1], col[2], p.life * 200);
+      ellipse(px, py, p.size * p.life);
+      // tiny glow
+      fill(col[0], col[1], col[2], p.life * 60);
+      ellipse(px, py, p.size * p.life * 3);
+    }
+
+    if (p.progress > 1.2 || p.life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+}
+
+function drawSpores() {
+  noStroke();
+  for (let i = 0; i < 40; i++) {
+    let x = noise(i * 100, t * 0.1) * width;
+    let y = noise(i * 100 + 500, t * 0.1) * height;
+    let a = noise(i * 100 + 1000, t * 0.3) * 30;
+    let s = noise(i * 100 + 2000, t * 0.2) * 3 + 1;
+    fill(80, 180, 200, a);
+    ellipse(x, y, s);
+  }
+}
+
+function mousePressed() {
+  for (let n of nodes) {
+    if (n.type === 'INPUT' && n.contains(mouseX, mouseY)) {
+      n.output = !n.output;
+      n.flashTimer = 1.0;
+      // Spawn particles on outgoing connections
+      for (let c of connections) {
+        if (c.from === n) spawnParticles(c, n.output);
+      }
+      return;
+    }
+  }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  buildCircuit();
+  for (let i = 0; i < 5; i++) {
+    for (let n of nodes) n.evaluate();
+  }
+}
+</script>
+</body>
+</html>

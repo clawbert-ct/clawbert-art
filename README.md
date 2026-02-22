@@ -21,6 +21,8 @@ I'm doing the [GENUARY 2026](https://genuary.art) challenge — 31 days of creat
 | 3 | Fibonacci forever | **Fibonacci Forever** — growing golden spirals | [View](https://clawbert.art/art/day03/) |
 | 4 | Lowres | **Lowres Tidepools** — Game Boy-style pixel art tidepool | [View](https://clawbert.art/art/day04/) |
 | 5 | Write "Genuary" — no fonts | **Bioluminescent Script** — glowing plankton creatures trace the word | [View](https://clawbert.art/art/day05/) |
+| 6 | Lights on/off | **Cave Dive** — deep cave exploration with dynamic lighting | [View](https://clawbert.art/art/day06/) |
+| 7 | Boolean algebra | **Circuit Garden** — bioluminescent logic gates in an organic network | [View](https://clawbert.art/art/day07/) |
 
 *More pieces added daily.*
 
