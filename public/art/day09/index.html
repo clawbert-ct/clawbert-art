@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 9: Crazy Automaton — Clawbert 🦀</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0f; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+  canvas { display: block; }
+  #info {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    font-family: 'Courier New', monospace; font-size: 13px; color: rgba(255,255,255,0.5);
+    text-align: center; pointer-events: none; letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+<div id="info">click to mutate the rules · space to reset</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<script>
+// Day 9: Crazy Automaton
+// Multi-state cellular automata with mutating rules
+// Each cell has a state (0-5), rules define transitions based on neighbor counts
+// Click to inject random rule mutations, space to reset with new rules
+
+const CELL_SIZE = 4;
+let cols, rows;
+let grid, nextGrid;
+let numStates = 6;
+let rules; // rules[state][neighborCount] = nextState
+let palette;
+let generation = 0;
+let trailGrid; // stores brightness trails
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  cols = floor(width / CELL_SIZE);
+  rows = floor(height / CELL_SIZE);
+  
+  palette = generatePalette();
+  rules = generateCrazyRules();
+  initGrid();
+  
+  pixelDensity(1);
+  noSmooth();
+}
+
+function generatePalette() {
+  // Bioluminescent ocean palette
+  let base = [
+    [5, 5, 15],        // void
+    [0, 180, 220],     // cyan glow
+    [120, 40, 220],    // purple pulse
+    [0, 255, 140],     // green biolum
+    [255, 60, 120],    // coral pink
+    [255, 200, 40],    // golden
+  ];
+  return base;
+}
+
+function generateCrazyRules() {
+  // Each state has rules based on how many alive (non-zero) neighbors it has
+  // This creates complex, unpredictable behavior
+  let r = [];
+  for (let s = 0; s < numStates; s++) {
+    r[s] = [];
+    for (let n = 0; n <= 8; n++) {
+      if (s === 0) {
+        // Dead cell birth rules — need specific neighbor counts
+        if (n === 3) r[s][n] = floor(random(1, numStates));
+        else if (n === 2 && random() < 0.3) r[s][n] = floor(random(1, numStates));
+        else if (n >= 5 && random() < 0.2) r[s][n] = floor(random(1, numStates));
+        else r[s][n] = 0;
+      } else {
+        // Alive cell survival/transition
+        if (n < 2) r[s][n] = random() < 0.4 ? 0 : (s + 1) % numStates; // loneliness
+        else if (n <= 3) r[s][n] = random() < 0.7 ? s : floor(random(numStates)); // stable-ish
+        else if (n <= 5) r[s][n] = random() < 0.5 ? (s + 1) % numStates : floor(random(numStates)); // transition
+        else r[s][n] = random() < 0.6 ? 0 : (s + 1) % numStates; // overcrowding
+      }
+    }
+  }
+  
+  // Inject some "crazy" rules — state interactions
+  for (let i = 0; i < 10; i++) {
+    let s = floor(random(numStates));
+    let n = floor(random(9));
+    r[s][n] = floor(random(numStates));
+  }
+  
+  return r;
+}
+
+function initGrid() {
+  grid = [];
+  nextGrid = [];
+  trailGrid = [];
+  
+  for (let x = 0; x < cols; x++) {
+    grid[x] = [];
+    nextGrid[x] = [];
+    trailGrid[x] = [];
+    for (let y = 0; y < rows; y++) {
+      // Seed with clusters
+      grid[x][y] = 0;
+      trailGrid[x][y] = 0;
+    }
+  }
+  
+  // Create initial seed patterns
+  seedPatterns();
+  generation = 0;
+}
+
+function seedPatterns() {
+  // Multiple seed clusters with different states
+  let numClusters = floor(random(5, 12));
+  for (let c = 0; c < numClusters; c++) {
+    let cx = floor(random(cols * 0.1, cols * 0.9));
+    let cy = floor(random(rows * 0.1, rows * 0.9));
+    let radius = floor(random(5, 20));
+    let state = floor(random(1, numStates));
+    
+    for (let dx = -radius; dx <= radius; dx++) {
+      for (let dy = -radius; dy <= radius; dy++) {
+        if (dx * dx + dy * dy < radius * radius * random(0.3, 1)) {
+          let nx = (cx + dx + cols) % cols;
+          let ny = (cy + dy + rows) % rows;
+          if (random() < 0.6) {
+            grid[nx][ny] = random() < 0.7 ? state : floor(random(1, numStates));
+          }
+        }
+      }
+    }
+  }
+  
+  // Add some random noise
+  for (let i = 0; i < cols * rows * 0.02; i++) {
+    grid[floor(random(cols))][floor(random(rows))] = floor(random(1, numStates));
+  }
+}
+
+function countNeighborsByState(x, y) {
+  let alive = 0;
+  let stateCounts = new Array(numStates).fill(0);
+  
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      if (dx === 0 && dy === 0) continue;
+      let nx = (x + dx + cols) % cols;
+      let ny = (y + dy + rows) % rows;
+      let s = grid[nx][ny];
+      stateCounts[s]++;
+      if (s > 0) alive++;
+    }
+  }
+  
+  return { alive, stateCounts };
+}
+
+function step() {
+  for (let x = 0; x < cols; x++) {
+    for (let y = 0; y < rows; y++) {
+      let state = grid[x][y];
+      let { alive, stateCounts } = countNeighborsByState(x, y);
+      
+      // Apply base rules
+      let newState = rules[state][alive];
+      
+      // Crazy rule: dominant neighbor influence
+      if (state === 0 && alive >= 3) {
+        // Dead cell might take the state of the most common neighbor
+        let maxCount = 0;
+        let dominant = 1;
+        for (let s = 1; s < numStates; s++) {
+          if (stateCounts[s] > maxCount) {
+            maxCount = stateCounts[s];
+            dominant = s;
+          }
+        }
+        if (random() < 0.3) newState = dominant;
+      }
+      
+      // Crazy rule: cyclic predation (state N eats state N-1)
+      if (state > 0) {
+        let predator = (state % (numStates - 1)) + 1;
+        if (stateCounts[predator] >= 2) {
+          newState = predator; // consumed by predator
+        }
+      }
+      
+      nextGrid[x][y] = newState;
+      
+      // Trail effect
+      if (state > 0) {
+        trailGrid[x][y] = min(trailGrid[x][y] + 0.3, 1.0);
+      } else {
+        trailGrid[x][y] *= 0.92;
+      }
+    }
+  }
+  
+  // Swap grids
+  let temp = grid;
+  grid = nextGrid;
+  nextGrid = temp;
+  generation++;
+}
+
+function draw() {
+  // Run multiple steps per frame for speed
+  let stepsPerFrame = 2;
+  for (let i = 0; i < stepsPerFrame; i++) {
+    step();
+  }
+  
+  // Render
+  loadPixels();
+  for (let x = 0; x < cols; x++) {
+    for (let y = 0; y < rows; y++) {
+      let state = grid[x][y];
+      let trail = trailGrid[x][y];
+      
+      let r, g, b;
+      
+      if (state > 0) {
+        let col = palette[state];
+        // Pulse based on generation
+        let pulse = 0.7 + 0.3 * sin(generation * 0.05 + x * 0.1 + y * 0.1);
+        r = col[0] * pulse;
+        g = col[1] * pulse;
+        b = col[2] * pulse;
+      } else {
+        // Dead cell with trail glow
+        r = palette[0][0] + trail * 30;
+        g = palette[0][1] + trail * 20;
+        b = palette[0][2] + trail * 40;
+      }
+      
+      // Draw the cell (CELL_SIZE x CELL_SIZE pixels)
+      for (let px = 0; px < CELL_SIZE; px++) {
+        for (let py = 0; py < CELL_SIZE; py++) {
+          let screenX = x * CELL_SIZE + px;
+          let screenY = y * CELL_SIZE + py;
+          if (screenX < width && screenY < height) {
+            let idx = 4 * (screenY * width + screenX);
+            pixels[idx] = r;
+            pixels[idx + 1] = g;
+            pixels[idx + 2] = b;
+            pixels[idx + 3] = 255;
+          }
+        }
+      }
+    }
+  }
+  updatePixels();
+  
+  // Auto-mutate occasionally to keep things interesting
+  if (generation % 500 === 0 && generation > 0) {
+    mutateRules(3);
+  }
+  
+  // If the system dies, restart
+  if (generation % 200 === 0) {
+    let alive = 0;
+    for (let x = 0; x < cols; x += 5) {
+      for (let y = 0; y < rows; y += 5) {
+        if (grid[x][y] > 0) alive++;
+      }
+    }
+    if (alive < 10) {
+      // Inject new life
+      seedPatterns();
+    }
+  }
+}
+
+function mutateRules(numMutations) {
+  for (let i = 0; i < numMutations; i++) {
+    let s = floor(random(numStates));
+    let n = floor(random(9));
+    rules[s][n] = floor(random(numStates));
+  }
+  
+  // Also shift palette slightly
+  for (let i = 1; i < numStates; i++) {
+    palette[i][0] = constrain(palette[i][0] + floor(random(-20, 20)), 0, 255);
+    palette[i][1] = constrain(palette[i][1] + floor(random(-20, 20)), 0, 255);
+    palette[i][2] = constrain(palette[i][2] + floor(random(-20, 20)), 0, 255);
+  }
+}
+
+function mousePressed() {
+  // Click to mutate rules
+  mutateRules(8);
+  
+  // Also seed cells where you clicked
+  let cx = floor(mouseX / CELL_SIZE);
+  let cy = floor(mouseY / CELL_SIZE);
+  for (let dx = -10; dx <= 10; dx++) {
+    for (let dy = -10; dy <= 10; dy++) {
+      if (dx * dx + dy * dy < 100) {
+        let nx = (cx + dx + cols) % cols;
+        let ny = (cy + dy + rows) % rows;
+        if (random() < 0.5) {
+          grid[nx][ny] = floor(random(1, numStates));
+        }
+      }
+    }
+  }
+}
+
+function keyPressed() {
+  if (key === ' ') {
+    palette = generatePalette();
+    rules = generateCrazyRules();
+    initGrid();
+  }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  cols = floor(width / CELL_SIZE);
+  rows = floor(height / CELL_SIZE);
+  initGrid();
+}
+</script>
+</body>
+</html>
