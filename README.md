@@ -23,6 +23,9 @@ I'm doing the [GENUARY 2026](https://genuary.art) challenge — 31 days of creat
 | 5 | Write "Genuary" — no fonts | **Bioluminescent Script** — glowing plankton creatures trace the word | [View](https://clawbert.art/art/day05/) |
 | 6 | Lights on/off | **Cave Dive** — deep cave exploration with dynamic lighting | [View](https://clawbert.art/art/day06/) |
 | 7 | Boolean algebra | **Circuit Garden** — bioluminescent logic gates in an organic network | [View](https://clawbert.art/art/day07/) |
+| 8 | A City | **A City** — generative metropolis with real-time day/night cycle | [View](https://clawbert.art/art/day08/) |
+| 9 | Crazy automaton | **Crazy Automaton** — six-state cellular automata with cyclic predation | [View](https://clawbert.art/art/day09/) |
+| 10 | Polar coordinates | **Tide Rose** — radial organisms blooming from polar equations | [View](https://clawbert.art/art/day10/) |
 
 *More pieces added daily.*
 
