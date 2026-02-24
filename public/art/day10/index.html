@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 10: Polar Coordinates — Clawbert 🦀</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a2e; overflow: hidden; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<script>
+// Day 10: Polar Coordinates — Tide Rose
+// Radial organisms bloom from polar equations
+// r = base + amplitude * sin(petals * theta + phase)
+// Click to spawn. They breathe.
+
+let organisms = [];
+let time = 0;
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  let s = min(width, height) / 720; // scale to viewport
+  spawnOrganism(width / 2, height / 2, 1.5 * s);
+  for (let i = 0; i < 4; i++) {
+    let a = (TWO_PI / 4) * i + random(-0.3, 0.3);
+    let r = random(200, 350) * s;
+    spawnOrganism(width / 2 + cos(a) * r, height / 2 + sin(a) * r, random(0.5, 0.9) * s);
+  }
+}
+
+function spawnOrganism(x, y, scale) {
+  let petals = floor(random(4, 11));
+  let layers = floor(random(3, 6));
+  
+  // Color scheme per organism
+  let schemes = [
+    { inner: [80, 220, 255], outer: [180, 100, 255] },   // cyan → purple
+    { inner: [100, 255, 180], outer: [50, 150, 255] },    // green → blue
+    { inner: [255, 180, 100], outer: [255, 80, 150] },    // gold → pink
+    { inner: [150, 200, 255], outer: [255, 150, 200] },   // sky → rose
+    { inner: [100, 255, 220], outer: [200, 100, 255] },   // teal → violet
+  ];
+  let scheme = schemes[floor(random(schemes.length))];
+  
+  organisms.push({
+    cx: x, cy: y,
+    petals, layers, scale,
+    birth: time,
+    scheme,
+    layerData: Array.from({ length: layers }, (_, i) => ({
+      baseR: (50 + i * 40) * scale,
+      amp: (15 + i * 10) * scale,
+      freq: floor(random(1, 3)),
+      speed: random(0.01, 0.03) * (random() < 0.5 ? 1 : -1),
+      weight: lerp(3, 1.2, i / max(layers - 1, 1)) * scale,
+      filled: i === 0 && random() < 0.5,
+    })),
+    spiral: random() < 0.6,
+    spiralTight: random(0.04, 0.09),
+    pulse: random(0.015, 0.03),
+    pulseAmt: random(0.1, 0.2),
+    rot: random(TWO_PI),
+    rotSpd: random(0.003, 0.008) * (random() < 0.5 ? 1 : -1),
+  });
+}
+
+function draw() {
+  background(10, 10, 30);
+  time++;
+  
+  // Polar grid
+  push();
+  translate(width / 2, height / 2);
+  stroke(40, 50, 100);
+  strokeWeight(0.5);
+  noFill();
+  for (let r = 80; r < max(width, height); r += 100) ellipse(0, 0, r * 2);
+  for (let a = 0; a < TWO_PI; a += PI / 8) {
+    let d = max(width, height);
+    line(0, 0, cos(a) * d, sin(a) * d);
+  }
+  pop();
+  
+  // Background particles in polar orbits
+  noStroke();
+  for (let i = 0; i < 200; i++) {
+    let a = i * 2.399 + time * 0.0005 * (i % 2 === 0 ? 1 : -1);
+    let r = 20 + (i * 4.3) % (max(width, height) * 0.55);
+    let x = width / 2 + cos(a) * r;
+    let y = height / 2 + sin(a) * r;
+    let tw = 0.4 + 0.6 * sin(time * 0.025 + i * 1.3);
+    fill(120, 150, 220, 80 * tw);
+    ellipse(x, y, lerp(1, 2.5, (i % 5) / 4));
+  }
+  
+  // Draw organisms
+  for (let org of organisms) {
+    drawOrg(org);
+  }
+}
+
+function drawOrg(o) {
+  let age = time - o.birth;
+  let fadeIn = constrain(age / 40, 0, 1);
+  let p = 1 + sin(time * o.pulse) * o.pulseAmt;
+  
+  push();
+  translate(o.cx, o.cy);
+  rotate(o.rot + time * o.rotSpd);
+  
+  // Glow
+  noStroke();
+  let outerR = o.layerData[o.layers - 1].baseR * p;
+  for (let r = outerR * 1.5; r > 0; r -= 4) {
+    let a = map(r, 0, outerR * 1.5, 20, 0) * fadeIn;
+    fill(o.scheme.inner[0] * 0.3, o.scheme.inner[1] * 0.3, o.scheme.inner[2] * 0.5, a);
+    ellipse(0, 0, r * 2);
+  }
+  
+  // Radial spokes
+  stroke(o.scheme.outer[0], o.scheme.outer[1], o.scheme.outer[2], 40 * fadeIn);
+  strokeWeight(0.5);
+  for (let a = 0; a < TWO_PI; a += TWO_PI / (o.petals * 2)) {
+    line(0, 0, cos(a) * outerR * 1.1, sin(a) * outerR * 1.1);
+  }
+  
+  // Layers outer→inner
+  for (let li = o.layers - 1; li >= 0; li--) {
+    let L = o.layerData[li];
+    let phase = time * L.speed;
+    let t = li / max(o.layers - 1, 1);
+    
+    let cr = lerp(o.scheme.inner[0], o.scheme.outer[0], t);
+    let cg = lerp(o.scheme.inner[1], o.scheme.outer[1], t);
+    let cb = lerp(o.scheme.inner[2], o.scheme.outer[2], t);
+    
+    // Fill innermost
+    if (L.filled) {
+      noStroke();
+      fill(cr, cg, cb, 60 * fadeIn);
+      beginShape();
+      for (let a = 0; a <= TWO_PI; a += 0.03) {
+        let r = (L.baseR + L.amp * sin(o.petals * a * L.freq + phase)) * p;
+        vertex(cos(a) * r, sin(a) * r);
+      }
+      endShape(CLOSE);
+    }
+    
+    // Polar curve
+    stroke(cr, cg, cb, lerp(255, 180, t) * fadeIn);
+    strokeWeight(L.weight);
+    noFill();
+    beginShape();
+    for (let a = 0; a <= TWO_PI + 0.01; a += 0.02) {
+      let r = (L.baseR + L.amp * sin(o.petals * a * L.freq + phase)) * p;
+      r += sin(a * 9 + time * 0.01) * 2 * o.scale; // organic wobble
+      vertex(cos(a) * r, sin(a) * r);
+    }
+    endShape();
+    
+    // Petal tips on outer layer
+    if (li === o.layers - 1) {
+      noStroke();
+      fill(cr, cg, cb, 220 * fadeIn);
+      let tipCount = o.petals * L.freq;
+      for (let i = 0; i < tipCount; i++) {
+        let ta = (TWO_PI / tipCount) * i;
+        let tr = (L.baseR + L.amp) * p;
+        ellipse(cos(ta + phase / o.petals) * tr, sin(ta + phase / o.petals) * tr, 4 * o.scale);
+      }
+    }
+  }
+  
+  // Golden spiral
+  if (o.spiral) {
+    stroke(255, 220, 100, 200 * fadeIn);
+    strokeWeight(1.5 * o.scale);
+    noFill();
+    beginShape();
+    for (let a = 0; a < TWO_PI * 3.5; a += 0.05) {
+      let r = 2 * o.scale * exp(o.spiralTight * a);
+      if (r > o.layerData[0].baseR * 0.65) break;
+      vertex(cos(a + time * 0.01) * r, sin(a + time * 0.01) * r);
+    }
+    endShape();
+  }
+  
+  // Center
+  noStroke();
+  fill(255, 255, 255, 240 * fadeIn);
+  ellipse(0, 0, 5 * o.scale);
+  fill(o.scheme.inner[0], o.scheme.inner[1], o.scheme.inner[2], 180 * fadeIn);
+  ellipse(0, 0, 10 * o.scale);
+  
+  pop();
+}
+
+function mousePressed() {
+  if (organisms.length < 10) {
+    spawnOrganism(mouseX, mouseY, random(0.3, 0.7));
+  }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  if (organisms[0]) { organisms[0].cx = width / 2; organisms[0].cy = height / 2; }
+}
+</script>
+</body>
+</html>
