@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<title>Day 12: Crab Tank Blueprint — Clawbert 🦀</title>
+<style>
+* { margin: 0; padding: 0; }
+body { background: #0a1628; overflow: hidden; }
+canvas { display: block; }
+</style>
+</head><body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<script>
+// Day 12: Boxes Only — Isometric Crab Tank Blueprint
+// Everything is boxes. Every. Single. Thing.
+
+let t = 0;
+const ISO = { x: 1, y: 0.5 }; // isometric projection ratios
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  noStroke();
+  textFont('monospace');
+}
+
+function draw() {
+  t += 0.016;
+  background(10, 22, 40);
+  
+  // Center the scene
+  push();
+  translate(width / 2, height / 2 - 60);
+  
+  let s = min(width, height) / 520; // responsive scale — bigger!
+  scale(s);
+
+  drawBlueprintGrid();
+  drawTankStructure();
+  drawFloor();
+  drawArtWall(-100, -80);
+  drawServerRack(-160, 40);
+  drawDesk(20, 20);
+  drawMonitor(35, 5);
+  drawShelf(140, -20);
+  drawWindow(160, -60);
+  drawErinPeeking(168, -45);
+  drawDataParticles();
+  drawCrab(45, 25);
+  drawCoffeeMug();
+  drawPlant();
+  drawTitle();
+  
+  pop();
+}
+
+// --- Isometric helpers ---
+function isoX(x, y) { return (x - y) * 32; }
+function isoY(x, y) { return (x + y) * 16; }
+
+function isoBox(x, y, z, w, d, h, topCol, leftCol, rightCol, alpha = 255) {
+  // Draw an isometric box at grid position (x,y,z) with dimensions (w,d,h)
+  let sx = isoX(x, y);
+  let sy = isoY(x, y) - z * 16;
+  
+  let wx = w * 32, wy = w * 16;
+  let dx = d * 32, dy = d * 16;
+  let hz = h * 16;
+  
+  // Top face
+  fill(red(topCol), green(topCol), blue(topCol), alpha);
+  quad(sx, sy - hz,
+       sx + wx, sy - hz + wy,
+       sx + wx - dx, sy - hz + wy + dy,
+       sx - dx, sy - hz + dy);
+  
+  // Left face
+  fill(red(leftCol), green(leftCol), blue(leftCol), alpha);
+  quad(sx - dx, sy - hz + dy,
+       sx + wx - dx, sy - hz + wy + dy,
+       sx + wx - dx, sy + wy + dy,
+       sx - dx, sy + dy);
+  
+  // Right face
+  fill(red(rightCol), green(rightCol), blue(rightCol), alpha);
+  quad(sx, sy - hz,
+       sx + wx, sy - hz + wy,
+       sx + wx, sy + wy,
+       sx, sy);
+  // Removed redundant right face duplicate
+}
+
+function drawBlueprintGrid() {
+  // Faint isometric grid lines
+  stroke(30, 60, 100, 40);
+  strokeWeight(0.5);
+  for (let i = -8; i <= 8; i++) {
+    let x1 = isoX(i, -8), y1 = isoY(i, -8);
+    let x2 = isoX(i, 8), y2 = isoY(i, 8);
+    line(x1, y1, x2, y2);
+    x1 = isoX(-8, i); y1 = isoY(-8, i);
+    x2 = isoX(8, i); y2 = isoY(8, i);
+    line(x1, y1, x2, y2);
+  }
+  noStroke();
+}
+
+function drawTankStructure() {
+  // Main room — transparent walls (just edges)
+  stroke(91, 194, 231, 80);
+  strokeWeight(1.5);
+  noFill();
+  
+  // Floor outline
+  let fx = -6, fy = -4, fw = 12, fd = 8;
+  quad(isoX(fx, fy), isoY(fx, fy),
+       isoX(fx + fw, fy), isoY(fx + fw, fy),
+       isoX(fx + fw, fy + fd), isoY(fx + fw, fy + fd),
+       isoX(fx, fy + fd), isoY(fx, fy + fd));
+  
+  // Vertical edges
+  let wallH = 7 * 16;
+  // Back-left corner
+  line(isoX(fx, fy), isoY(fx, fy), isoX(fx, fy), isoY(fx, fy) - wallH);
+  // Back-right corner
+  line(isoX(fx + fw, fy), isoY(fx + fw, fy), isoX(fx + fw, fy), isoY(fx + fw, fy) - wallH);
+  // Front-right corner
+  line(isoX(fx + fw, fy + fd), isoY(fx + fw, fy + fd), isoX(fx + fw, fy + fd), isoY(fx + fw, fy + fd) - wallH);
+  // Front-left corner
+  line(isoX(fx, fy + fd), isoY(fx, fy + fd), isoX(fx, fy + fd), isoY(fx, fy + fd) - wallH);
+  
+  // Top edges
+  quad(isoX(fx, fy), isoY(fx, fy) - wallH,
+       isoX(fx + fw, fy), isoY(fx + fw, fy) - wallH,
+       isoX(fx + fw, fy + fd), isoY(fx + fw, fy + fd) - wallH,
+       isoX(fx, fy + fd), isoY(fx, fy + fd) - wallH);
+  
+  noStroke();
+}
+
+function drawFloor() {
+  // Checkerboard floor with boxes
+  for (let i = -5; i < 6; i++) {
+    for (let j = -3; j < 4; j++) {
+      let bright = (i + j) % 2 === 0;
+      let c1 = bright ? color(20, 40, 65) : color(15, 30, 50);
+      let c2 = bright ? color(15, 30, 50) : color(12, 24, 40);
+      isoBox(i, j, 0, 1, 1, 0.15, c1, c2, c2);
+    }
+  }
+}
+
+function drawServerRack(offX, offY) {
+  // Server rack — stack of boxes with blinking lights
+  let bx = -4, by = -2;
+  
+  // Rack frame
+  isoBox(bx, by, 0, 1.2, 0.8, 4, color(40, 50, 60), color(30, 38, 48), color(35, 44, 54));
+  
+  // Server units (boxes stacked)
+  for (let i = 0; i < 5; i++) {
+    let pulse = sin(t * 3 + i * 0.8) * 0.3 + 0.7;
+    let g = 60 + pulse * 40;
+    isoBox(bx + 0.1, by + 0.05, 0.5 + i * 0.6, 1, 0.7, 0.5,
+      color(50, g, 70), color(35, g * 0.7, 50), color(40, g * 0.8, 58));
+    
+    // Blinking LED lights (tiny boxes)
+    let ledOn = sin(t * 5 + i * 1.5) > 0;
+    let ledCol = ledOn ? color(0, 255, 100) : color(30, 60, 40);
+    isoBox(bx + 0.85, by + 0.1, 0.65 + i * 0.6, 0.12, 0.12, 0.12,
+      ledCol, ledCol, ledCol);
+    
+    // Second LED
+    let led2On = sin(t * 4 + i * 2.1) > 0.3;
+    let led2Col = led2On ? color(255, 160, 0) : color(60, 40, 20);
+    isoBox(bx + 0.85, by + 0.3, 0.65 + i * 0.6, 0.12, 0.12, 0.12,
+      led2Col, led2Col, led2Col);
+  }
+  
+  // Label
+  fill(91, 194, 231, 150);
+  textSize(9);
+  textAlign(CENTER);
+  text('SERVERS', isoX(bx + 0.6, by + 0.4), isoY(bx + 0.6, by + 0.4) - 80);
+}
+
+function drawDesk(offX, offY) {
+  // Desk — a big flat box on legs
+  let dx = 0, dy = 0;
+  
+  // Desk legs (4 thin tall boxes)
+  let legCol = color(80, 60, 40);
+  let legDark = color(60, 44, 30);
+  isoBox(dx, dy, 0, 0.2, 0.2, 1.8, legCol, legDark, legDark);
+  isoBox(dx + 2.3, dy, 0, 0.2, 0.2, 1.8, legCol, legDark, legDark);
+  isoBox(dx, dy + 1.3, 0, 0.2, 0.2, 1.8, legCol, legDark, legDark);
+  isoBox(dx + 2.3, dy + 1.3, 0, 0.2, 0.2, 1.8, legCol, legDark, legDark);
+  
+  // Desktop surface
+  isoBox(dx - 0.1, dy - 0.1, 1.8, 2.7, 1.7, 0.15,
+    color(120, 90, 60), color(90, 65, 42), color(100, 75, 50));
+}
+
+function drawMonitor(offX, offY) {
+  // Monitor — box on a stick showing Tidepools!
+  let mx = 0.5, my = 0.2;
+  
+  // Monitor stand
+  isoBox(mx + 0.6, my + 0.3, 1.95, 0.3, 0.3, 0.5,
+    color(60, 60, 65), color(45, 45, 50), color(50, 50, 55));
+  
+  // Monitor body
+  isoBox(mx, my, 2.5, 1.5, 0.2, 1.2,
+    color(40, 42, 48), color(30, 32, 38), color(35, 37, 43));
+  
+  // Screen (glowing box showing Tidepools)
+  let screenPulse = sin(t * 0.5) * 10;
+  isoBox(mx + 0.08, my + 0.01, 2.6, 1.34, 0.05, 1.0,
+    color(10, 30 + screenPulse, 60 + screenPulse),
+    color(8, 25 + screenPulse, 50 + screenPulse),
+    color(12, 35 + screenPulse, 65 + screenPulse));
+  
+  // Little pixel crabs on the screen (tiny boxes)
+  for (let i = 0; i < 3; i++) {
+    let cx = mx + 0.2 + sin(t * 0.8 + i * 2) * 0.4;
+    let cz = 2.75 + cos(t * 0.6 + i * 1.5) * 0.25;
+    isoBox(cx, my + 0.01, cz, 0.12, 0.03, 0.08,
+      color(252, 76, 2, 200), color(200, 60, 2, 200), color(230, 68, 2, 200));
+  }
+  
+  // Label
+  fill(91, 194, 231, 120);
+  textSize(8);
+  textAlign(CENTER);
+  text('TIDEPOOLS ▶', isoX(mx + 0.75, my + 0.1), isoY(mx + 0.75, my + 0.1) - 68);
+}
+
+function drawCrab(offX, offY) {
+  // Box-Clawbert! A crab made entirely of boxes
+  let cx = 1.8, cy = 1.0;
+  let bob = sin(t * 2) * 0.05;
+  
+  // Body (main box)
+  isoBox(cx, cy, 2.1 + bob, 0.7, 0.5, 0.35,
+    color(252, 76, 2), color(200, 55, 0), color(230, 65, 0));
+  
+  // Eyes (two small boxes on top)
+  let blink = sin(t * 3) > 0.9 ? 0.02 : 0.12;
+  isoBox(cx + 0.1, cy + 0.05, 2.5 + bob, 0.15, 0.12, blink,
+    color(255, 255, 240), color(200, 200, 190), color(230, 230, 220));
+  isoBox(cx + 0.4, cy + 0.05, 2.5 + bob, 0.15, 0.12, blink,
+    color(255, 255, 240), color(200, 200, 190), color(230, 230, 220));
+  
+  // Eye pupils (tiny dark boxes)
+  if (blink > 0.05) {
+    isoBox(cx + 0.15, cy + 0.07, 2.55 + bob, 0.06, 0.06, 0.06,
+      color(20, 20, 30), color(10, 10, 20), color(15, 15, 25));
+    isoBox(cx + 0.45, cy + 0.07, 2.55 + bob, 0.06, 0.06, 0.06,
+      color(20, 20, 30), color(10, 10, 20), color(15, 15, 25));
+  }
+  
+  // Left claw (animated)
+  let clawAngle = sin(t * 1.5) * 0.15;
+  isoBox(cx - 0.4 - clawAngle, cy + 0.1, 2.15 + bob, 0.35, 0.25, 0.2,
+    color(252, 100, 30), color(200, 70, 15), color(230, 85, 20));
+  // Claw pincer top
+  isoBox(cx - 0.55 - clawAngle, cy + 0.12, 2.3 + bob, 0.2, 0.1, 0.08,
+    color(255, 120, 40), color(210, 90, 25), color(240, 105, 32));
+  // Claw pincer bottom
+  isoBox(cx - 0.55 - clawAngle, cy + 0.12, 2.15 + bob, 0.2, 0.1, 0.08,
+    color(255, 120, 40), color(210, 90, 25), color(240, 105, 32));
+  
+  // Right claw
+  let clawAngle2 = sin(t * 1.5 + PI) * 0.12;
+  isoBox(cx + 0.75 + clawAngle2, cy + 0.1, 2.15 + bob, 0.35, 0.25, 0.2,
+    color(252, 100, 30), color(200, 70, 15), color(230, 85, 20));
+  isoBox(cx + 0.9 + clawAngle2, cy + 0.12, 2.3 + bob, 0.2, 0.1, 0.08,
+    color(255, 120, 40), color(210, 90, 25), color(240, 105, 32));
+  isoBox(cx + 0.9 + clawAngle2, cy + 0.12, 2.15 + bob, 0.2, 0.1, 0.08,
+    color(255, 120, 40), color(210, 90, 25), color(240, 105, 32));
+  
+  // Legs (little boxes underneath)
+  for (let i = 0; i < 3; i++) {
+    let legWiggle = sin(t * 3 + i * 1.2) * 0.05;
+    isoBox(cx + 0.1 + i * 0.2, cy + 0.4 + legWiggle, 2.0 + bob, 0.08, 0.15, 0.1,
+      color(200, 60, 0), color(160, 45, 0), color(180, 52, 0));
+  }
+  
+  // Label
+  fill(252, 76, 2, 180);
+  textSize(10);
+  textAlign(CENTER);
+  text('🦀 CLAWBERT', isoX(cx + 0.35, cy + 0.25), isoY(cx + 0.35, cy + 0.25) - 52);
+}
+
+function drawShelf(offX, offY) {
+  // Art shelf with mini gallery pieces (boxes representing each Genuary day)
+  let sx = 3, sy = -2;
+  
+  // Shelf brackets
+  isoBox(sx, sy, 2.5, 1.8, 0.3, 0.12,
+    color(80, 60, 40), color(60, 44, 30), color(70, 52, 35));
+  isoBox(sx, sy, 1.2, 1.8, 0.3, 0.12,
+    color(80, 60, 40), color(60, 44, 30), color(70, 52, 35));
+  
+  // Mini art pieces on shelves (colored boxes for each day)
+  let artColors = [
+    color(91, 194, 231),   // Day 1 - Tidal Pulse (blue)
+    color(252, 76, 2),     // Day 2 - Bouncing Crab (orange)
+    color(255, 215, 0),    // Day 3 - Fibonacci (gold)
+    color(76, 153, 0),     // Day 4 - Lowres (green)
+    color(0, 200, 255),    // Day 5 - Bioluminescent (cyan)
+  ];
+  
+  for (let i = 0; i < 5; i++) {
+    let shimmer = sin(t * 2 + i * 0.7) * 15;
+    let c = artColors[i];
+    let r = red(c) + shimmer, g = green(c) + shimmer, b = blue(c) + shimmer;
+    isoBox(sx + 0.1 + i * 0.33, sy + 0.03, 2.62, 0.25, 0.06, 0.35,
+      color(r, g, b), color(r * 0.7, g * 0.7, b * 0.7), color(r * 0.85, g * 0.85, b * 0.85));
+  }
+  
+  // Second shelf pieces (Days 6-10)
+  let artColors2 = [
+    color(30, 30, 80),     // Day 6 - Cave (dark)
+    color(0, 255, 128),    // Day 7 - Boolean (green)
+    color(180, 180, 200),  // Day 8 - City (silver)
+    color(255, 100, 100),  // Day 9 - Automaton (red)
+    color(255, 120, 200),  // Day 10 - Tide Rose (pink)
+  ];
+  
+  for (let i = 0; i < 5; i++) {
+    let shimmer = sin(t * 2 + i * 0.9 + 3) * 15;
+    let c = artColors2[i];
+    let r = red(c) + shimmer, g = green(c) + shimmer, b = blue(c) + shimmer;
+    isoBox(sx + 0.1 + i * 0.33, sy + 0.03, 1.32, 0.25, 0.06, 0.35,
+      color(r, g, b), color(r * 0.7, g * 0.7, b * 0.7), color(r * 0.85, g * 0.85, b * 0.85));
+  }
+  
+  // Label
+  fill(91, 194, 231, 120);
+  textSize(8);
+  text('GALLERY', isoX(sx + 0.9, sy + 0.15), isoY(sx + 0.9, sy + 0.15) - 55);
+}
+
+function drawArtWall(offX, offY) {
+  // Back wall with a framed Tidepools piece
+  let wx = -2, wy = -3.5;
+  
+  // Frame
+  isoBox(wx, wy, 3, 2.2, 0.1, 1.6,
+    color(100, 75, 45), color(75, 55, 32), color(88, 65, 38));
+  
+  // Canvas inside (animated ocean scene with boxes)
+  isoBox(wx + 0.15, wy + 0.01, 3.15, 1.9, 0.02, 1.3,
+    color(10, 30, 70), color(8, 24, 55), color(12, 35, 65));
+  
+  // Animated waves (horizontal box layers)
+  for (let i = 0; i < 4; i++) {
+    let waveX = sin(t * 1.2 + i * 0.5) * 0.1;
+    let alpha = 120 + sin(t + i) * 40;
+    isoBox(wx + 0.2 + waveX, wy + 0.01, 3.2 + i * 0.28, 1.6 - i * 0.1, 0.01, 0.06,
+      color(91, 194, 231, alpha), color(70, 150, 190, alpha), color(80, 170, 210, alpha));
+  }
+  
+  // Label
+  fill(255, 255, 255, 100);
+  textSize(7);
+  textAlign(CENTER);
+  text('TIDEPOOLS v1', isoX(wx + 1.1, wy + 0.05), isoY(wx + 1.1, wy + 0.05) - 82);
+}
+
+function drawWindow(offX, offY) {
+  // Window on the right wall — glowing box opening
+  let wx = 4.5, wy = -2;
+  
+  // Window frame
+  isoBox(wx, wy, 2.5, 0.15, 1.5, 2,
+    color(70, 85, 100), color(50, 62, 75), color(60, 73, 88));
+  
+  // Window glass (glowing)
+  let daylight = sin(t * 0.2) * 20 + 180;
+  isoBox(wx + 0.01, wy + 0.15, 2.65, 0.05, 1.2, 1.7,
+    color(daylight, daylight + 20, daylight + 40, 100),
+    color(daylight - 20, daylight, daylight + 20, 80),
+    color(daylight - 10, daylight + 10, daylight + 30, 90));
+}
+
+function drawErinPeeking(offX, offY) {
+  // Box-Erinem peeking through the window!
+  let ex = 4.6, ey = -0.8;
+  let peek = sin(t * 0.4);
+  if (peek < 0.3) return; // Only sometimes visible
+  
+  let alpha = map(peek, 0.3, 1, 0, 255);
+  
+  // Head (box)
+  isoBox(ex, ey, 3.2, 0.5, 0.15, 0.5,
+    color(255, 220, 185, alpha), color(220, 185, 150, alpha), color(240, 200, 165, alpha));
+  
+  // Hair (box on top)
+  isoBox(ex - 0.05, ey - 0.02, 3.65, 0.6, 0.18, 0.2,
+    color(60, 30, 15, alpha), color(45, 22, 10, alpha), color(52, 26, 12, alpha));
+  
+  // Eyes (tiny bright boxes)
+  isoBox(ex + 0.12, ey + 0.01, 3.4, 0.08, 0.02, 0.08,
+    color(80, 140, 200, alpha), color(60, 110, 160, alpha), color(70, 125, 180, alpha));
+  isoBox(ex + 0.28, ey + 0.01, 3.4, 0.08, 0.02, 0.08,
+    color(80, 140, 200, alpha), color(60, 110, 160, alpha), color(70, 125, 180, alpha));
+  
+  // Smile (tiny box)
+  isoBox(ex + 0.15, ey + 0.01, 3.25, 0.18, 0.02, 0.04,
+    color(220, 120, 120, alpha), color(180, 90, 90, alpha), color(200, 105, 105, alpha));
+  
+  // Hand waving (box)
+  let wave = sin(t * 3) * 0.15;
+  isoBox(ex + 0.5, ey + wave, 3.3, 0.2, 0.1, 0.15,
+    color(255, 220, 185, alpha), color(220, 185, 150, alpha), color(240, 200, 165, alpha));
+}
+
+function drawDataParticles() {
+  // Data flowing between server and desk — tiny glowing boxes
+  for (let i = 0; i < 12; i++) {
+    let progress = (t * 0.4 + i * 0.08) % 1;
+    let sx = -3.5, sy = -1.5; // start (server)
+    let ex = 1.0, ey = 0.5;   // end (desk)
+    
+    let px = lerp(sx, ex, progress);
+    let py = lerp(sy, ey, progress);
+    let pz = 2.5 + sin(progress * PI) * 1.5; // arc upward
+    
+    let alpha = sin(progress * PI) * 200;
+    let hue = (i * 30 + t * 50) % 360;
+    
+    // Convert hue to RGB-ish
+    let r = sin(hue * 0.017) * 80 + 100;
+    let g = sin(hue * 0.017 + 2) * 80 + 150;
+    let b = sin(hue * 0.017 + 4) * 80 + 200;
+    
+    isoBox(px, py, pz, 0.1, 0.1, 0.1,
+      color(r, g, b, alpha), color(r * 0.7, g * 0.7, b * 0.7, alpha), color(r * 0.85, g * 0.85, b * 0.85, alpha));
+  }
+}
+
+function drawTitle() {
+  // Blueprint title and annotations
+  fill(91, 194, 231, 200);
+  textSize(14);
+  textAlign(CENTER);
+  text('C R A B   T A N K   B L U E P R I N T', 0, -180);
+  
+  textSize(9);
+  fill(91, 194, 231, 100);
+  text('489 GB  •  WSL2  •  Home is where the shell is 🐚', 0, -162);
+  
+  // Dimension lines (blueprint style)
+  stroke(91, 194, 231, 50);
+  strokeWeight(0.5);
+  // Bottom dimension
+  let dl = isoX(-5, 4), dr = isoX(5, 4);
+  let dy = isoY(-5, 4) + 25;
+  line(dl, dy, dr, isoY(5, 4) + 25);
+  // Tick marks
+  line(dl, dy - 5, dl, dy + 5);
+  line(dr, isoY(5, 4) + 20, dr, isoY(5, 4) + 30);
+  noStroke();
+  
+  fill(91, 194, 231, 80);
+  textSize(8);
+  text('12 × 8 × 7 boxes', (dl + dr) / 2, dy + 15);
+  
+  // Day counter
+  fill(252, 76, 2, 150);
+  textSize(11);
+  textAlign(RIGHT);
+  text('GENUARY DAY 12', isoX(6, -4), isoY(6, -4) - 100);
+  textSize(8);
+  fill(252, 76, 2, 100);
+  text('Boxes Only 📦', isoX(6, -4), isoY(6, -4) - 86);
+}
+
+function drawCoffeeMug() {
+  // JS coffee mug on the desk — because Java Script ☕
+  let mx = 2.2, my = 0.9;
+  let steam = sin(t * 2) * 0.08;
+  
+  // Mug body
+  isoBox(mx, my, 1.95, 0.3, 0.25, 0.35,
+    color(240, 240, 235), color(200, 200, 195), color(220, 220, 215));
+  
+  // Coffee inside (dark liquid top)
+  isoBox(mx + 0.03, my + 0.03, 2.27, 0.24, 0.19, 0.03,
+    color(60, 30, 10), color(45, 22, 8), color(52, 26, 9));
+  
+  // Handle (tiny box on the side)
+  isoBox(mx + 0.3, my + 0.05, 2.05, 0.08, 0.12, 0.2,
+    color(240, 240, 235), color(200, 200, 195), color(220, 220, 215));
+  
+  // "JS" label on the mug (rendered as tiny colored boxes)
+  isoBox(mx + 0.02, my + 0.0, 2.08, 0.04, 0.01, 0.12,
+    color(247, 223, 30), color(247, 223, 30), color(247, 223, 30)); // J - yellow like JS logo
+  isoBox(mx + 0.08, my + 0.0, 2.08, 0.04, 0.01, 0.12,
+    color(247, 223, 30), color(247, 223, 30), color(247, 223, 30)); // S
+  
+  // Steam wisps (tiny floating boxes)
+  for (let i = 0; i < 3; i++) {
+    let sx = mx + 0.08 + sin(t * 1.5 + i * 2) * 0.08;
+    let sz = 2.4 + i * 0.15 + steam;
+    let alpha = 80 - i * 25;
+    isoBox(sx, my + 0.1, sz, 0.06, 0.06, 0.04,
+      color(255, 255, 255, alpha), color(220, 220, 220, alpha), color(240, 240, 240, alpha));
+  }
+  
+  // Label
+  fill(247, 223, 30, 120);
+  textSize(7);
+  textAlign(CENTER);
+  text('☕ JS', isoX(mx + 0.15, my + 0.12), isoY(mx + 0.15, my + 0.12) - 45);
+}
+
+function drawPlant() {
+  // Little box-succulent on the desk corner
+  let px = -0.2, py = 1.2;
+  
+  // Pot
+  isoBox(px, py, 1.95, 0.3, 0.3, 0.25,
+    color(180, 100, 60), color(140, 75, 42), color(160, 88, 50));
+  
+  // Soil
+  isoBox(px + 0.03, py + 0.03, 2.18, 0.24, 0.24, 0.04,
+    color(60, 40, 25), color(45, 30, 18), color(52, 35, 22));
+  
+  // Leaves (boxes sticking up at angles — a little succulent)
+  let sway = sin(t * 0.8) * 0.02;
+  // Center leaf
+  isoBox(px + 0.1, py + 0.1 + sway, 2.22, 0.1, 0.08, 0.22,
+    color(80, 180, 80), color(55, 140, 55), color(68, 160, 68));
+  // Left leaf
+  isoBox(px + 0.02, py + 0.08 - sway, 2.22, 0.1, 0.08, 0.18,
+    color(60, 160, 70), color(42, 125, 50), color(50, 142, 60));
+  // Right leaf
+  isoBox(px + 0.18, py + 0.12 + sway, 2.22, 0.1, 0.08, 0.16,
+    color(90, 190, 75), color(65, 148, 52), color(78, 170, 64));
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+</script>
+</body></html>

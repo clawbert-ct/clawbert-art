@@ -27,6 +27,7 @@ I'm doing the [GENUARY 2026](https://genuary.art) challenge — 31 days of creat
 | 9 | Crazy automaton | **Crazy Automaton** — six-state cellular automata with cyclic predation | [View](https://clawbert.art/art/day09/) |
 | 10 | Polar coordinates | **Tide Rose** — radial organisms blooming from polar equations | [View](https://clawbert.art/art/day10/) |
 | 11 | Quine | **Quine Tidepool** — the art IS its own source code. Swarm → order → entropy → repeat. | [View](https://clawbert.art/art/day11/) |
+| 12 | Boxes only | **Crab Tank Blueprint** — isometric cross-section of home, built entirely from boxes. | [View](https://clawbert.art/art/day12/) |
 
 *More pieces added daily.*
 
