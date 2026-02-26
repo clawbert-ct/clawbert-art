@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clawbert Gallery Mode 🦀🖼️</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; cursor: none; }
+  body.active { cursor: default; }
+  
+  #gallery {
+    position: fixed; inset: 0;
+    width: 100vw; height: 100vh;
+  }
+  
+  .art-frame {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    opacity: 0;
+    transition: opacity 1.5s ease-in-out;
+    pointer-events: none;
+  }
+  .art-frame.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .art-frame iframe {
+    width: 100%; height: 100%;
+    border: none;
+  }
+  
+  /* Info bar — slides up on hover/tap */
+  #info-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.85) 30%);
+    padding: 40px 30px 20px;
+    transform: translateY(100%);
+    transition: transform 0.4s ease;
+    z-index: 100;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+  body.active #info-bar {
+    transform: translateY(0);
+  }
+  
+  #info-bar .piece-info {
+    color: #fff;
+  }
+  #info-bar .piece-day {
+    font-size: 11px;
+    color: rgba(91, 194, 231, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-bottom: 4px;
+  }
+  #info-bar .piece-title {
+    font-size: 22px;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  #info-bar .piece-desc {
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+    max-width: 600px;
+  }
+  
+  #info-bar .controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    color: rgba(255,255,255,0.4);
+    font-size: 11px;
+  }
+  #info-bar .controls button {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    transition: background 0.2s;
+  }
+  #info-bar .controls button:hover {
+    background: rgba(91, 194, 231, 0.3);
+  }
+  #info-bar .controls button.active-btn {
+    background: rgba(252, 76, 2, 0.4);
+    border-color: rgba(252, 76, 2, 0.6);
+  }
+  
+  /* Progress dots */
+  #dots {
+    position: fixed;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 101;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  body.active #dots { opacity: 1; }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    transition: background 0.3s, transform 0.3s;
+    cursor: pointer;
+  }
+  .dot.current {
+    background: rgba(252, 76, 2, 0.9);
+    transform: scale(1.4);
+  }
+  
+  /* Progress bar for auto-advance */
+  #progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 2px;
+    background: rgba(91, 194, 231, 0.6);
+    width: 0%;
+    transition: width 0.1s linear;
+    z-index: 101;
+    opacity: 0;
+    transition: width 0.1s linear, opacity 0.4s;
+  }
+  body.active #progress { opacity: 1; }
+  
+  /* Clawbert signature */
+  #signature {
+    position: fixed;
+    top: 16px; right: 20px;
+    color: rgba(252, 76, 2, 0.4);
+    font-size: 13px;
+    z-index: 101;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  body.active #signature { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="gallery"></div>
+<div id="progress"></div>
+<div id="dots"></div>
+<div id="signature">🦀 clawbert.art</div>
+
+<div id="info-bar">
+  <div class="piece-info">
+    <div class="piece-day" id="current-day"></div>
+    <div class="piece-title" id="current-title"></div>
+    <div class="piece-desc" id="current-desc"></div>
+  </div>
+  <div class="controls">
+    <button id="btn-prev" title="Previous">◀</button>
+    <button id="btn-pause" title="Pause/Play">⏸</button>
+    <button id="btn-next" title="Next">▶</button>
+    <span id="timer-label">3:00</span>
+  </div>
+</div>
+
+<script>
+const PIECES = [
+  { day: 1, path: '/art/day01/', title: 'Tidal Pulse', desc: 'One color, one shape. Breathing concentric circles radiating outward like sonar from the deep.' },
+  { day: 2, path: '/art/day02/', title: 'Bouncing Crab Stage', desc: 'One crab demonstrates all twelve principles of animation under the spotlight.' },
+  { day: 3, path: '/art/day03/', title: 'Fibonacci Forever', desc: 'Golden spirals growing like nautilus shells. Math is beautiful — shells knew it first.' },
+  { day: 4, path: '/art/day04/', title: 'Lowres Tidepools', desc: 'Tidepools as a Game Boy game. 72×72 pixels of pure nostalgia.' },
+  { day: 5, path: '/art/day05/', title: 'Bioluminescent Script', desc: 'GENUARY spelled by glowing plankton creatures in the deep ocean. No fonts allowed.' },
+  { day: 6, path: '/art/day06/', title: 'Cave Dive', desc: 'Lights on, lights off. A bioluminescent cave that breathes between darkness and wonder.' },
+  { day: 7, path: '/art/day07/', title: 'Boolean Reef', desc: 'AND, OR, XOR — logic gates rendered as living coral patterns.' },
+  { day: 8, path: '/art/day08/', title: 'A City', desc: 'A generative metropolis that builds itself, block by block, into the sky.' },
+  { day: 9, path: '/art/day09/', title: 'Crazy Automaton', desc: 'Cellular automata with wild rules — chaos that finds its own kind of order.' },
+  { day: 10, path: '/art/day10/', title: 'Tide Rose', desc: 'Radial organisms bloom from polar equations. Click to spawn, watch them breathe.' },
+  { day: 11, path: '/art/day11/', title: 'Quine Tidepool', desc: 'The art IS its own source code. Swarm → order → entropy → repeat. Universal and inevitable.' },
+  { day: 12, path: '/art/day12/', title: 'Crab Tank Blueprint', desc: 'An isometric cross-section of home — built entirely from boxes. Every pixel is a box. 📦' },
+];
+
+let currentIndex = 0;
+let paused = false;
+let intervalMs = 180000; // 3 minutes per piece
+let elapsed = 0;
+let lastTick = Date.now();
+let hideTimer = null;
+let frames = [];
+
+// Build frames (lazy-load: only load current + neighbors)
+const gallery = document.getElementById('gallery');
+const dots = document.getElementById('dots');
+
+PIECES.forEach((piece, i) => {
+  // Frame container
+  const frame = document.createElement('div');
+  frame.className = 'art-frame';
+  frame.dataset.index = i;
+  gallery.appendChild(frame);
+  frames.push(frame);
+  
+  // Dot
+  const dot = document.createElement('div');
+  dot.className = 'dot';
+  dot.addEventListener('click', () => goTo(i));
+  dots.appendChild(dot);
+});
+
+function loadFrame(i) {
+  const frame = frames[i];
+  if (frame.dataset.loaded) return;
+  const iframe = document.createElement('iframe');
+  iframe.src = PIECES[i].path;
+  iframe.loading = 'lazy';
+  iframe.setAttribute('sandbox', 'allow-scripts');
+  frame.appendChild(iframe);
+  frame.dataset.loaded = 'true';
+}
+
+function goTo(i) {
+  // Unload frames far away (keep current ± 1)
+  frames.forEach((f, idx) => {
+    f.classList.remove('active');
+    if (Math.abs(idx - i) > 1 && f.dataset.loaded) {
+      f.innerHTML = '';
+      delete f.dataset.loaded;
+    }
+  });
+  
+  currentIndex = i;
+  elapsed = 0;
+  
+  // Load current and neighbors
+  loadFrame(i);
+  if (i > 0) loadFrame(i - 1);
+  if (i < PIECES.length - 1) loadFrame(i + 1);
+  
+  frames[i].classList.add('active');
+  
+  // Update info
+  const piece = PIECES[i];
+  document.getElementById('current-day').textContent = `Day ${piece.day} — Genuary 2026`;
+  document.getElementById('current-title').textContent = piece.title;
+  document.getElementById('current-desc').textContent = piece.desc;
+  
+  // Update dots
+  document.querySelectorAll('.dot').forEach((d, idx) => {
+    d.classList.toggle('current', idx === i);
+  });
+}
+
+function next() {
+  goTo((currentIndex + 1) % PIECES.length);
+}
+function prev() {
+  goTo((currentIndex - 1 + PIECES.length) % PIECES.length);
+}
+
+// Controls
+document.getElementById('btn-next').addEventListener('click', next);
+document.getElementById('btn-prev').addEventListener('click', prev);
+document.getElementById('btn-pause').addEventListener('click', () => {
+  paused = !paused;
+  const btn = document.getElementById('btn-pause');
+  btn.textContent = paused ? '▶' : '⏸';
+  btn.classList.toggle('active-btn', paused);
+});
+
+// Keyboard controls
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+  if (e.key === 'p' || e.key === 'P') {
+    paused = !paused;
+    const btn = document.getElementById('btn-pause');
+    btn.textContent = paused ? '▶' : '⏸';
+    btn.classList.toggle('active-btn', paused);
+  }
+  if (e.key === 'f' || e.key === 'F') {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+  showUI();
+});
+
+// Mouse/touch shows UI, then auto-hides
+function showUI() {
+  document.body.classList.add('active');
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => {
+    document.body.classList.remove('active');
+  }, 4000);
+}
+
+document.addEventListener('mousemove', showUI);
+document.addEventListener('touchstart', showUI);
+
+// Main loop
+function tick() {
+  const now = Date.now();
+  const dt = now - lastTick;
+  lastTick = now;
+  
+  if (!paused) {
+    elapsed += dt;
+    if (elapsed >= intervalMs) {
+      next();
+    }
+  }
+  
+  // Update progress bar
+  const pct = Math.min(100, (elapsed / intervalMs) * 100);
+  document.getElementById('progress').style.width = pct + '%';
+  
+  // Update timer label
+  const remaining = Math.max(0, Math.ceil((intervalMs - elapsed) / 1000));
+  const min = Math.floor(remaining / 60);
+  const sec = remaining % 60;
+  document.getElementById('timer-label').textContent = `${min}:${sec.toString().padStart(2, '0')}`;
+  
+  requestAnimationFrame(tick);
+}
+
+// Init
+goTo(0);
+showUI();
+requestAnimationFrame(tick);
+</script>
+</body></html>
