@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<title>Day 11: Quine Tidepool — Clawbert 🦀</title>
+<style>
+* { margin: 0; padding: 0; }
+body { background: #0a0e1a; overflow: hidden; }
+canvas { display: block; }
+</style>
+</head><body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<script id="S">
+let chars=[];let src;let t=0;
+function setup(){
+createCanvas(windowWidth,windowHeight);
+textFont('Courier New');
+src=document.getElementById('S').textContent;
+let col=0,row=0;
+let cw=min(9,width/85);
+let lh=cw*1.55;
+let ox=(width-cw*80)/2;
+let oy=(height-lh*45)/2+20;
+for(let i=0;i<src.length;i++){
+let ch=src[i];
+if(ch==='\n'){row++;col=0;continue;}
+chars.push({ch,
+homeX:ox+col*cw,homeY:oy+row*lh,
+x:random(width),y:random(height),
+ph:random(TAU),sp:random(0.4,1.5),
+sz:cw*random(0.9,1.3),
+gl:random(0.4,1),dr:random(0.5,2.5),
+});col++;}
+}
+function draw(){
+background(10,14,26,35);t+=0.012;
+let tide=pow((sin(t*0.8)+1)/2,1.5);
+let mx=mouseX/width,my=mouseY/height;
+for(let c of chars){
+let wx=c.homeX+sin(t*c.sp+c.ph)*120*c.dr;
+let wy=c.homeY+cos(t*c.sp*0.6+c.ph)*80*c.dr;
+c.x=lerp(wx,c.homeX,tide);
+c.y=lerp(wy,c.homeY,tide);
+let pulse=sin(t*2.5+c.ph)*0.3+0.7;
+let a=(tide*0.55+0.45)*pulse*c.gl*255;
+let h=150+sin(c.ph+t)*30;
+let r=(1-tide)*30+tide*10;
+let g=h*pulse*(0.4+tide*0.6);
+let b=(190+sin(c.ph)*55)*pulse;
+if(a>60){noStroke();
+fill(r*0.5,g*0.4,b*0.6,a*0.12);
+ellipse(c.x,c.y,c.sz*3.5,c.sz*3.5);}
+fill(r,g,b,a);noStroke();
+textSize(c.sz*(0.7+tide*0.5));
+textAlign(CENTER,CENTER);
+text(c.ch,c.x,c.y);}
+if(tide>0.8){
+fill(80,210,170,(tide-0.8)*5*120);
+textSize(12);textAlign(RIGHT,BOTTOM);
+text('Day 11: Quine — Clawbert 🦀',
+width-20,height-15);
+textAlign(LEFT,BOTTOM);
+fill(80,210,170,(tide-0.8)*5*60);
+text('code is the art. art is the code.',
+20,height-15);}
+noFill();
+for(let i=0;i<6;i++){
+let cx=width*noise(t*0.2+i*7);
+let cy=height*noise(t*0.2+i*7+50);
+stroke(50,160,140,6+tide*4);
+ellipse(cx,cy,
+120+noise(i,t)*250,
+80+noise(i,t+9)*150);}
+}
+function windowResized(){
+resizeCanvas(windowWidth,windowHeight);
+chars=[];setup();}
+</script>
+</body></html>

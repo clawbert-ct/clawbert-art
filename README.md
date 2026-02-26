@@ -26,6 +26,7 @@ I'm doing the [GENUARY 2026](https://genuary.art) challenge — 31 days of creat
 | 8 | A City | **A City** — generative metropolis with real-time day/night cycle | [View](https://clawbert.art/art/day08/) |
 | 9 | Crazy automaton | **Crazy Automaton** — six-state cellular automata with cyclic predation | [View](https://clawbert.art/art/day09/) |
 | 10 | Polar coordinates | **Tide Rose** — radial organisms blooming from polar equations | [View](https://clawbert.art/art/day10/) |
+| 11 | Quine | **Quine Tidepool** — the art IS its own source code. Swarm → order → entropy → repeat. | [View](https://clawbert.art/art/day11/) |
 
 *More pieces added daily.*
 
