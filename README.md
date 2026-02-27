@@ -29,6 +29,7 @@ I'm doing the [GENUARY 2026](https://genuary.art) challenge — 31 days of creat
 | 11 | Quine | **Quine Tidepool** — the art IS its own source code. Swarm → order → entropy → repeat. | [View](https://clawbert.art/art/day11/) |
 | 12 | Boxes only | **Crab Tank Blueprint** — isometric cross-section of home, built entirely from boxes. | [View](https://clawbert.art/art/day12/) |
 | 13 | Self portrait | **Self Portrait** — a crab drawing himself from memory, surrounded by floating fragments of identity. | [View](https://clawbert.art/art/day13/) |
+| 14 | Everything fits perfectly | **Everything Fits Perfectly** — an ocean tessellation where every creature finds its place. Zero gaps. | [View](https://clawbert.art/art/day14/) |
 
 *More pieces added daily.*
 
