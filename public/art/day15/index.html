@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 15 — Invisible Object | Clawbert 🦀</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; height: 100vh; }
+  canvas { display: block; }
+  #info {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    color: rgba(180, 200, 220, 0.5); font: 13px 'Georgia', serif;
+    text-align: center; pointer-events: none; letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="info">Day 15 — Invisible Object<br><em>You cannot see what casts the shadow.</em></div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+const TAU = Math.PI * 2;
+
+// Off-screen canvas for shadow compositing
+const shadowCanvas = document.createElement('canvas');
+const sctx = shadowCanvas.getContext('2d');
+
+// Sand grains
+const grains = [];
+for (let i = 0; i < 500; i++) {
+  grains.push({
+    x: Math.random(), y: Math.random(),
+    r: Math.random() * 1.5 + 0.5,
+    hue: 33 + Math.random() * 14,
+    light: 22 + Math.random() * 16
+  });
+}
+
+// Caustics
+const caustics = [];
+for (let i = 0; i < 60; i++) {
+  caustics.push({
+    x: Math.random(), y: Math.random(),
+    phase: Math.random() * TAU,
+    speed: 0.3 + Math.random() * 0.4,
+    size: 25 + Math.random() * 55
+  });
+}
+
+// Floating particles
+const particles = [];
+for (let i = 0; i < 35; i++) {
+  particles.push({
+    x: Math.random(), y: Math.random(),
+    vx: (Math.random() - 0.5) * 0.0003,
+    vy: -0.0001 - Math.random() * 0.00015,
+    size: 1 + Math.random() * 2,
+    alpha: 0.1 + Math.random() * 0.15,
+    phase: Math.random() * TAU
+  });
+}
+
+// Floor objects (rocks/shells)
+const floorObjects = [];
+for (let i = 0; i < 10; i++) {
+  floorObjects.push({
+    x: 0.08 + Math.random() * 0.84,
+    y: 0.5 + Math.random() * 0.42,
+    size: 6 + Math.random() * 14,
+    rot: Math.random() * TAU,
+    type: Math.random() < 0.5 ? 'rock' : 'shell'
+  });
+}
+
+// Crab state
+let crabX = 0.5, crabY = 0.48;
+let crabVX = 0, crabVY = 0;
+let wanderAngle = 0, wanderTimer = 0;
+let legPhase = 0, breathe = 0, clawOpen = 0;
+
+function updateCrab(dt) {
+  wanderTimer -= dt;
+  if (wanderTimer <= 0) {
+    wanderAngle += (Math.random() - 0.5) * 1.8;
+    wanderTimer = 1.5 + Math.random() * 3;
+    if (Math.random() < 0.15) { crabVX *= 0.1; crabVY *= 0.1; wanderTimer = 1 + Math.random() * 2; return; }
+  }
+  const speed = 0.012;
+  crabVX += (Math.cos(wanderAngle) * speed - crabVX) * 0.03;
+  crabVY += (Math.sin(wanderAngle) * speed * 0.4 - crabVY) * 0.03;
+  crabX += crabVX * dt;
+  crabY += crabVY * dt;
+  if (crabX < 0.18 || crabX > 0.82) { wanderAngle = Math.PI - wanderAngle; crabX = Math.max(0.18, Math.min(0.82, crabX)); }
+  if (crabY < 0.25 || crabY > 0.7) { wanderAngle = -wanderAngle; crabY = Math.max(0.25, Math.min(0.7, crabY)); }
+  const v = Math.hypot(crabVX, crabVY);
+  legPhase += dt * 4 * v / speed;
+  breathe += dt * 0.8;
+  clawOpen = 0.5 + Math.sin(breathe * 0.7) * 0.5;
+}
+
+function drawFloor(t, lx, ly) {
+  const grd = ctx.createRadialGradient(lx, ly, 30, lx, ly, Math.max(W, H) * 0.8);
+  grd.addColorStop(0, 'hsl(42, 35%, 30%)');
+  grd.addColorStop(0.3, 'hsl(38, 28%, 20%)');
+  grd.addColorStop(0.7, 'hsl(35, 22%, 12%)');
+  grd.addColorStop(1, 'hsl(30, 18%, 6%)');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, W, H);
+
+  for (const g of grains) {
+    const gx = g.x * W, gy = g.y * H;
+    const d = Math.hypot(gx - lx, gy - ly);
+    const b = Math.max(0, g.light * (1 - d / (Math.max(W, H) * 0.65)));
+    if (b < 3) continue;
+    ctx.fillStyle = `hsl(${g.hue}, 28%, ${b}%)`;
+    ctx.beginPath(); ctx.arc(gx, gy, g.r, 0, TAU); ctx.fill();
+  }
+
+  // Caustics
+  ctx.globalCompositeOperation = 'screen';
+  for (const c of caustics) {
+    const cx = (c.x + Math.sin(t * c.speed + c.phase) * 0.04) * W;
+    const cy = (c.y + Math.cos(t * c.speed * 0.7 + c.phase) * 0.04) * H;
+    const d = Math.hypot(cx - lx, cy - ly);
+    const a = Math.max(0, 0.035 * (1 - d / (Math.max(W, H) * 0.55)));
+    if (a < 0.005) continue;
+    const sz = c.size * (1 + Math.sin(t * c.speed + c.phase) * 0.25);
+    const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, sz);
+    cg.addColorStop(0, `rgba(100, 170, 190, ${a})`);
+    cg.addColorStop(1, 'rgba(100, 170, 190, 0)');
+    ctx.fillStyle = cg;
+    ctx.beginPath(); ctx.arc(cx, cy, sz, 0, TAU); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawCrabOnShadowCanvas(scale) {
+  // Draw a solid black crab silhouette on the shadow canvas
+  const s = sctx;
+  const bw = 70 * scale; // body width
+  const bh = 48 * scale; // body height
+  const cx = shadowCanvas.width / 2;
+  const cy = shadowCanvas.height / 2;
+
+  s.clearRect(0, 0, shadowCanvas.width, shadowCanvas.height);
+  s.fillStyle = '#000';
+  s.strokeStyle = '#000';
+  s.lineCap = 'round';
+  s.lineJoin = 'round';
+
+  const facing = Math.atan2(crabVY, crabVX);
+  s.save();
+  s.translate(cx, cy);
+  s.rotate(facing);
+  const bsc = 1 + Math.sin(breathe) * 0.015;
+  s.scale(bsc, bsc);
+
+  // Body
+  s.beginPath();
+  s.ellipse(0, 0, bw, bh, 0, 0, TAU);
+  s.fill();
+
+  // Legs — 4 pairs
+  for (let side = -1; side <= 1; side += 2) {
+    for (let i = 0; i < 4; i++) {
+      const baseA = (side === 1 ? -0.4 : Math.PI + 0.4) + (i - 1.5) * 0.32 * side;
+      const swing = Math.sin(legPhase + i * 1.3 + (side === 1 ? 0 : Math.PI)) * 0.18;
+      const a = baseA + swing;
+      const sx = Math.cos(baseA) * bw * 0.8;
+      const sy = Math.sin(baseA) * bh * 0.8;
+      const legLen = bw * 0.75;
+      const mx = sx + Math.cos(a) * legLen * 0.55;
+      const my = sy + Math.sin(a) * legLen * 0.55;
+      const ea = a + side * 0.5 + swing * 1.5;
+      const ex = mx + Math.cos(ea) * legLen * 0.5;
+      const ey = my + Math.sin(ea) * legLen * 0.5;
+
+      s.beginPath();
+      s.lineWidth = 6 * scale;
+      s.moveTo(sx, sy);
+      s.quadraticCurveTo(mx, my, ex, ey);
+      s.stroke();
+    }
+  }
+
+  // Claws
+  for (let side = -1; side <= 1; side += 2) {
+    const cb = side === 1 ? 0.15 : Math.PI - 0.15;
+    const armX = Math.cos(cb) * bw * 0.9;
+    const armY = Math.sin(cb) * bh * 0.4;
+    const clawSz = bw * 0.6;
+    const open = clawOpen * 0.35;
+
+    // Arm
+    s.beginPath();
+    s.lineWidth = 7 * scale;
+    s.moveTo(Math.cos(cb) * bw * 0.6, Math.sin(cb) * bh * 0.3);
+    s.lineTo(armX, armY);
+    s.stroke();
+
+    // Upper pincer
+    s.beginPath();
+    s.lineWidth = 5.5 * scale;
+    const ua = cb - open * side;
+    s.moveTo(armX, armY);
+    const utx = armX + Math.cos(ua) * clawSz;
+    const uty = armY + Math.sin(ua) * clawSz * 0.35 - 4 * scale;
+    s.quadraticCurveTo(armX + Math.cos(ua) * clawSz * 0.6, armY - 8 * scale, utx, uty);
+    s.stroke();
+
+    // Lower pincer
+    s.beginPath();
+    const la = cb + open * side;
+    s.moveTo(armX, armY);
+    const ltx = armX + Math.cos(la) * clawSz;
+    const lty = armY + Math.sin(la) * clawSz * 0.35 + 4 * scale;
+    s.quadraticCurveTo(armX + Math.cos(la) * clawSz * 0.6, armY + 8 * scale, ltx, lty);
+    s.stroke();
+
+    // Pincer tips — rounded ends
+    s.beginPath(); s.arc(utx, uty, 3 * scale, 0, TAU); s.fill();
+    s.beginPath(); s.arc(ltx, lty, 3 * scale, 0, TAU); s.fill();
+  }
+
+  // Eye stalks
+  for (let side = -1; side <= 1; side += 2) {
+    const stalkLen = bw * 0.4;
+    const baseX = bw * 0.65;
+    const baseY = side * bh * 0.25;
+    const eyeA = 0.1 * side + Math.sin(breathe * 0.5) * 0.05;
+    const eX = baseX + Math.cos(eyeA) * stalkLen;
+    const eY = baseY + Math.sin(eyeA) * stalkLen;
+
+    s.beginPath();
+    s.lineWidth = 3 * scale;
+    s.moveTo(baseX, baseY);
+    s.lineTo(eX, eY);
+    s.stroke();
+    s.beginPath();
+    s.arc(eX, eY, 4.5 * scale, 0, TAU);
+    s.fill();
+  }
+
+  s.restore();
+}
+
+function drawCrabShadow(t, lx, ly) {
+  const cx = crabX * W;
+  const cy = crabY * H;
+  const dx = cx - lx, dy = cy - ly;
+  const dist = Math.hypot(dx, dy);
+  const shadowScale = 1.0 + dist / 800;
+
+  // Shadow canvas size
+  const pad = 350 * shadowScale;
+  shadowCanvas.width = pad * 2;
+  shadowCanvas.height = pad * 2;
+
+  drawCrabOnShadowCanvas(shadowScale);
+
+  // Shadow offset — projected away from light
+  const offX = dx * 0.25;
+  const offY = dy * 0.25;
+
+  // Alpha based on proximity to light
+  const alpha = Math.min(0.8, 0.35 + 0.45 * (1 - dist / Math.max(W, H)));
+
+  // Draw shadow canvas onto main with blur
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.filter = `blur(${2 + dist * 0.005}px)`;
+  ctx.drawImage(shadowCanvas, cx + offX - pad, cy + offY - pad);
+  ctx.filter = 'none';
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function drawFloorObjectShadows(lx, ly) {
+  for (const obj of floorObjects) {
+    const ox = obj.x * W, oy = obj.y * H;
+    const dx = ox - lx, dy = oy - ly;
+    const d = Math.hypot(dx, dy);
+    const a = Math.max(0, 0.35 * (1 - d / Math.max(W, H)));
+    if (a < 0.02) continue;
+
+    ctx.save();
+    ctx.translate(ox + dx * 0.08, oy + dy * 0.08);
+    ctx.rotate(obj.rot);
+    ctx.filter = `blur(${2 + d * 0.005}px)`;
+    ctx.fillStyle = `rgba(0, 5, 15, ${a})`;
+
+    if (obj.type === 'rock') {
+      ctx.beginPath();
+      ctx.ellipse(0, 0, obj.size, obj.size * 0.6, 0, 0, TAU);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = `rgba(0, 5, 15, ${a})`;
+      for (let ang = 0; ang < TAU * 1.5; ang += 0.1) {
+        const r = obj.size * 0.15 * ang;
+        if (ang === 0) ctx.moveTo(r, 0);
+        else ctx.lineTo(Math.cos(ang) * r, Math.sin(ang) * r);
+      }
+      ctx.stroke();
+    }
+    ctx.filter = 'none';
+    ctx.restore();
+  }
+}
+
+function drawLightGlow(lx, ly, t) {
+  ctx.globalCompositeOperation = 'screen';
+  const rg = ctx.createRadialGradient(lx, ly - 60, 0, lx, ly, Math.max(W, H) * 0.45);
+  rg.addColorStop(0, 'rgba(130, 190, 210, 0.06)');
+  rg.addColorStop(0.15, 'rgba(100, 160, 190, 0.025)');
+  rg.addColorStop(1, 'rgba(50, 80, 100, 0)');
+  ctx.fillStyle = rg;
+  ctx.beginPath(); ctx.arc(lx, ly, Math.max(W, H) * 0.45, 0, TAU); ctx.fill();
+
+  const dg = ctx.createRadialGradient(lx, ly - 50, 0, lx, ly - 50, 25);
+  dg.addColorStop(0, 'rgba(200, 230, 255, 0.12)');
+  dg.addColorStop(1, 'rgba(200, 230, 255, 0)');
+  ctx.fillStyle = dg;
+  ctx.beginPath(); ctx.arc(lx, ly - 50, 25, 0, TAU); ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawParticles(t, lx, ly) {
+  for (const p of particles) {
+    p.x += p.vx + Math.sin(t * 0.5 + p.phase) * 0.0001;
+    p.y += p.vy;
+    if (p.y < -0.02) { p.y = 1.02; p.x = Math.random(); }
+    if (p.x < -0.02) p.x = 1.02;
+    if (p.x > 1.02) p.x = -0.02;
+    const px = p.x * W, py = p.y * H;
+    const d = Math.hypot(px - lx, py - ly);
+    const bright = Math.min(1, 250 / (d + 80));
+    const a = p.alpha * bright;
+    if (a < 0.02) continue;
+    ctx.beginPath();
+    ctx.arc(px, py, p.size, 0, TAU);
+    ctx.fillStyle = `rgba(180, 210, 230, ${a})`;
+    ctx.fill();
+  }
+}
+
+let lightAngle = 0;
+let lastTime = 0;
+
+function animate(now) {
+  now *= 0.001;
+  const dt = Math.min(now - (lastTime || now), 0.05);
+  lastTime = now;
+
+  lightAngle += dt * 0.12;
+  const lx = W * 0.5 + Math.cos(lightAngle) * W * 0.28;
+  const ly = H * 0.22 + Math.sin(lightAngle * 0.6) * H * 0.08;
+
+  updateCrab(dt);
+  drawFloor(now, lx, ly);
+  drawFloorObjectShadows(lx, ly);
+  drawCrabShadow(now, lx, ly);
+  drawLightGlow(lx, ly, now);
+  drawParticles(now, lx, ly);
+
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
