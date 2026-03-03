@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 17 — Tidepool Tessellation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a1a; overflow: hidden; }
+  canvas { display: block; }
+  #sig {
+    position: fixed; bottom: 12px; right: 16px;
+    font: 11px monospace; color: rgba(255,255,255,0.3);
+    pointer-events: none; z-index: 10;
+  }
+  #info {
+    position: fixed; top: 12px; left: 16px;
+    font: 13px monospace; color: rgba(255,255,255,0.5);
+    pointer-events: none; z-index: 10;
+  }
+</style>
+</head>
+<body>
+<div id="info">click to shift symmetry</div>
+<div id="sig">Clawbert 🦀 Day 17 — Tidepool Tessellation</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<script>
+// Day 17: Wallpaper Group — Tidepool Tessellation
+// Repeating plane patterns made from ocean life.
+// Each symmetry group tiles the plane differently.
+// Click to cycle through wallpaper groups.
+
+let currentGroup = 0;
+let transitionT = 1;
+let targetGroup = 0;
+let time = 0;
+let tileSize = 120;
+let palette;
+
+const groupNames = [
+  'p1 — drift',
+  'p2 — rotation', 
+  'pm — reflection',
+  'p4 — fourfold',
+  'p3 — threefold',
+  'p6m — kaleidoscope'
+];
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  palette = {
+    deep: color(8, 20, 40),
+    water: color(15, 50, 80),
+    glow1: color(40, 200, 220),
+    glow2: color(80, 140, 255),
+    glow3: color(200, 100, 255),
+    coral: color(255, 120, 80),
+    shell: color(255, 200, 120),
+    life: color(100, 255, 180)
+  };
+  textFont('monospace');
+}
+
+function draw() {
+  background(8, 12, 28);
+  time += 0.008;
+  
+  if (transitionT < 1) {
+    transitionT += 0.02;
+    transitionT = min(transitionT, 1);
+  }
+  
+  let cols = ceil(width / tileSize) + 2;
+  let rows = ceil(height / tileSize) + 2;
+  
+  push();
+  // Slow drift
+  let driftX = sin(time * 0.3) * 20;
+  let driftY = time * 15 % tileSize;
+  translate(driftX, driftY);
+  
+  for (let i = -1; i < cols; i++) {
+    for (let j = -1; j < rows; j++) {
+      let x = i * tileSize;
+      let y = j * tileSize;
+      
+      push();
+      translate(x, y);
+      drawTile(i, j, tileSize, currentGroup);
+      pop();
+    }
+  }
+  pop();
+  
+  // Vignette
+  drawVignette();
+}
+
+function drawTile(col, row, size, group) {
+  let halfSize = size / 2;
+  
+  switch(group) {
+    case 0: // p1 — simple translation, drifting creatures
+      drawP1Tile(col, row, size);
+      break;
+    case 1: // p2 — 180° rotation
+      drawP2Tile(col, row, size);
+      break;
+    case 2: // pm — mirror reflection
+      drawPMTile(col, row, size);
+      break;
+    case 3: // p4 — 90° rotational
+      drawP4Tile(col, row, size);
+      break;
+    case 4: // p3 — 120° rotational (hexagonal)
+      drawP3Tile(col, row, size);
+      break;
+    case 5: // p6m — full kaleidoscope
+      drawP6MTile(col, row, size);
+      break;
+  }
+}
+
+function drawP1Tile(col, row, s) {
+  // Simple translation — each tile has a drifting jellyfish
+  let phase = (col * 0.7 + row * 1.3) + time;
+  let alpha = map(sin(phase * 2), -1, 1, 80, 220) * transitionT;
+  
+  push();
+  translate(s/2, s/2);
+  
+  // Jellyfish body
+  let wobble = sin(phase * 3) * 5;
+  noStroke();
+  fill(red(palette.glow2), green(palette.glow2), blue(palette.glow2), alpha * 0.3);
+  ellipse(wobble, -5, s * 0.4, s * 0.3);
+  
+  fill(red(palette.glow1), green(palette.glow1), blue(palette.glow1), alpha * 0.6);
+  ellipse(wobble, -5, s * 0.25, s * 0.2);
+  
+  // Tentacles
+  stroke(red(palette.glow1), green(palette.glow1), blue(palette.glow1), alpha * 0.4);
+  strokeWeight(1.5);
+  noFill();
+  for (let t = 0; t < 4; t++) {
+    let tx = wobble + map(t, 0, 3, -s*0.1, s*0.1);
+    beginShape();
+    for (let p = 0; p < 5; p++) {
+      let py = p * s * 0.08 + 5;
+      let px = tx + sin(phase * 2 + p * 0.8 + t) * 8;
+      vertex(px, py);
+    }
+    endShape();
+  }
+  
+  // Small particles
+  for (let p = 0; p < 3; p++) {
+    let px = sin(phase + p * 2.1) * s * 0.35;
+    let py = cos(phase + p * 1.7) * s * 0.35;
+    let ps = 2 + sin(phase * 3 + p) * 1;
+    fill(red(palette.life), green(palette.life), blue(palette.life), alpha * 0.5);
+    noStroke();
+    ellipse(px, py, ps, ps);
+  }
+  
+  pop();
+}
+
+function drawP2Tile(col, row, s) {
+  // 180° rotation — crab pairs facing opposite directions
+  let phase = (col * 0.5 + row * 0.8) + time;
+  let alpha = map(sin(phase), -1, 1, 100, 230) * transitionT;
+  
+  push();
+  translate(s/2, s/2);
+  
+  for (let r = 0; r < 2; r++) {
+    push();
+    rotate(r * PI);
+    
+    // Mini crab
+    let crabX = sin(phase + r) * 5;
+    let crabY = -s * 0.12;
+    
+    // Body
+    noStroke();
+    fill(red(palette.coral), green(palette.coral), blue(palette.coral), alpha * 0.7);
+    ellipse(crabX, crabY, s * 0.22, s * 0.15);
+    
+    // Eyes
+    fill(red(palette.shell), green(palette.shell), blue(palette.shell), alpha);
+    ellipse(crabX - 5, crabY - 5, 3, 4);
+    ellipse(crabX + 5, crabY - 5, 3, 4);
+    
+    // Claws
+    let clawAng = sin(phase * 2 + r) * 0.3;
+    stroke(red(palette.coral), green(palette.coral), blue(palette.coral), alpha * 0.8);
+    strokeWeight(2);
+    noFill();
+    push();
+    translate(crabX - s*0.1, crabY);
+    rotate(-0.5 + clawAng);
+    arc(0, 0, 12, 10, -PI*0.7, PI*0.2);
+    pop();
+    push();
+    translate(crabX + s*0.1, crabY);
+    rotate(0.5 - clawAng);
+    arc(0, 0, 12, 10, PI*0.8, PI*1.7);
+    pop();
+    
+    // Legs
+    strokeWeight(1);
+    for (let l = 0; l < 3; l++) {
+      let lx = crabX + map(l, 0, 2, -8, 8);
+      let ly = crabY + 5;
+      let legAng = sin(phase * 3 + l * 0.5 + r) * 3;
+      line(lx, ly, lx + legAng, ly + 7);
+    }
+    
+    pop();
+  }
+  
+  // Center spiral (shell)
+  noFill();
+  stroke(red(palette.shell), green(palette.shell), blue(palette.shell), alpha * 0.3);
+  strokeWeight(1);
+  let spiralR = s * 0.05;
+  beginShape();
+  for (let a = 0; a < TWO_PI * 2; a += 0.2) {
+    let sr = spiralR * (1 + a / (TWO_PI * 2));
+    vertex(cos(a + time) * sr, sin(a + time) * sr);
+  }
+  endShape();
+  
+  pop();
+}
+
+function drawPMTile(col, row, s) {
+  // Mirror reflection — kelp and fish mirrored
+  let phase = (col * 0.4 + row * 0.6) + time;
+  let alpha = map(sin(phase * 1.5), -1, 1, 90, 220) * transitionT;
+  
+  push();
+  translate(s/2, s/2);
+  
+  for (let m = 0; m < 2; m++) {
+    push();
+    scale(m === 0 ? 1 : -1, 1);
+    
+    // Kelp strand
+    stroke(red(palette.life), green(palette.life), blue(palette.life), alpha * 0.5);
+    strokeWeight(2.5);
+    noFill();
+    beginShape();
+    for (let k = 0; k < 6; k++) {
+      let ky = map(k, 0, 5, s * 0.4, -s * 0.4);
+      let kx = s * 0.12 + sin(phase + k * 0.7) * 8;
+      vertex(kx, ky);
+    }
+    endShape();
+    
+    // Kelp leaves
+    fill(red(palette.life), green(palette.life), blue(palette.life), alpha * 0.3);
+    noStroke();
+    for (let k = 1; k < 5; k++) {
+      let ky = map(k, 0, 5, s * 0.4, -s * 0.4);
+      let kx = s * 0.12 + sin(phase + k * 0.7) * 8;
+      let leafDir = (k % 2 === 0) ? 1 : -1;
+      ellipse(kx + leafDir * 6, ky, 10, 5);
+    }
+    
+    // Small fish
+    let fishY = sin(phase * 2 + m) * s * 0.15;
+    let fishX = s * 0.05;
+    fill(red(palette.glow1), green(palette.glow1), blue(palette.glow1), alpha * 0.6);
+    noStroke();
+    ellipse(fishX, fishY, 10, 5);
+    triangle(fishX + 5, fishY, fishX + 10, fishY - 3, fishX + 10, fishY + 3);
+    
+    // Eye
+    fill(255, alpha);
+    ellipse(fishX - 2, fishY - 1, 2, 2);
+    
+    pop();
+  }
+  
+  // Center bubble column
+  for (let b = 0; b < 3; b++) {
+    let by = sin(phase + b * 2.5) * s * 0.3;
+    let bx = sin(phase * 0.5 + b) * 3;
+    let bs = 3 + sin(phase * 2 + b) * 1.5;
+    noFill();
+    stroke(red(palette.glow1), green(palette.glow1), blue(palette.glow1), alpha * 0.3);
+    strokeWeight(0.8);
+    ellipse(bx, by, bs, bs);
+  }
+  
+  pop();
+}
+
+function drawP4Tile(col, row, s) {
+  // 4-fold rotational — starfish/anemone mandala
+  let phase = (col * 0.3 + row * 0.9) + time;
+  let alpha = map(sin(phase * 0.8), -1, 1, 100, 240) * transitionT;
+  
+  push();
+  translate(s/2, s/2);
+  
+  for (let r = 0; r < 4; r++) {
+    push();
+    rotate(r * HALF_PI + time * 0.2);
+    
+    // Anemone tendril
+    stroke(red(palette.glow3), green(palette.glow3), blue(palette.glow3), alpha * 0.5);
+    strokeWeight(1.5);
+    noFill();
+    let tendrilLen = s * 0.3;
+    beginShape();
+    for (let t = 0; t < 8; t++) {
+      let tt = t / 7;
+      let tx = tt * tendrilLen * 0.5;
+      let ty = -tt * tendrilLen * 0.3 + sin(phase * 2 + t * 0.5) * 5 * tt;
+      vertex(tx, ty);
+    }
+    endShape();
+    
+    // Tendril tip glow
+    let tipX = tendrilLen * 0.25;
+    let tipY = -tendrilLen * 0.3 + sin(phase * 2 + 3.5) * 5;
+    fill(red(palette.glow3), green(palette.glow3), blue(palette.glow3), alpha * 0.3);
+    noStroke();
+    ellipse(tipX, tipY, 6, 6);
+    
+    // Small dots along arm
+    for (let d = 0; d < 3; d++) {
+      let dt = (d + 1) / 4;
+      let dx = dt * tendrilLen * 0.5;
+      let dy = -dt * tendrilLen * 0.3 + sin(phase * 2 + d * 0.5) * 5 * dt;
+      fill(red(palette.glow1), green(palette.glow1), blue(palette.glow1), alpha * 0.4);
+      ellipse(dx, dy, 3, 3);
+    }
+    
+    pop();
+  }
+  
+  // Center pearl
+  let pearlGlow = map(sin(phase * 3), -1, 1, 0.3, 0.8);
+  fill(red(palette.shell), green(palette.shell), blue(palette.shell), alpha * pearlGlow);
+  noStroke();
+  ellipse(0, 0, 10, 10);
+  fill(255, alpha * pearlGlow * 0.5);
+  ellipse(-2, -2, 4, 4);
+  
+  pop();
+}
+
+function drawP3Tile(col, row, s) {
+  // 3-fold — hexagonal shells
+  let phase = (col * 0.6 + row * 0.4) + time;
+  let alpha = map(sin(phase), -1, 1, 80, 210) * transitionT;
+  
+  push();
+  translate(s/2, s/2);
+  
+  for (let r = 0; r < 3; r++) {
+    push();
+    rotate(r * TWO_PI / 3 + time * 0.15);
+    translate(s * 0.15, 0);
+    
+    // Nautilus shell spiral
+    noFill();
+    stroke(red(palette.shell), green(palette.shell), blue(palette.shell), alpha * 0.6);
+    strokeWeight(1.5);
+    beginShape();
+    for (let a = 0; a < TWO_PI * 2.5; a += 0.15) {
+      let sr = 3 + a * 2;
+      let sx = cos(a) * sr * 0.4;
+      let sy = sin(a) * sr * 0.4;
+      vertex(sx, sy);
+    }
+    endShape();
+    
+    // Shell body glow
+    fill(red(palette.shell), green(palette.shell), blue(palette.shell), alpha * 0.15);
+    noStroke();
+    ellipse(3, 0, s * 0.15, s * 0.12);
+    
+    pop();
+  }
+  
+  // Center: three-way current lines
+  stroke(red(palette.water), green(palette.water), blue(palette.water), alpha * 0.4);
+  strokeWeight(0.8);
+  noFill();
+  for (let r = 0; r < 3; r++) {
+    let ang = r * TWO_PI / 3 + time * 0.5;
+    let cx1 = cos(ang) * 5;
+    let cy1 = sin(ang) * 5;
+    let cx2 = cos(ang) * 12;
+    let cy2 = sin(ang) * 12;
+    line(cx1, cy1, cx2, cy2);
+  }
+  
+  // Floating particles
+  for (let p = 0; p < 4; p++) {
+    let px = sin(phase + p * 1.6) * s * 0.35;
+    let py = cos(phase * 0.7 + p * 2.3) * s * 0.35;
+    fill(red(palette.glow2), green(palette.glow2), blue(palette.glow2), alpha * 0.25);
+    noStroke();
+    ellipse(px, py, 2, 2);
+  }
+  
+  pop();
+}
+
+function drawP6MTile(col, row, s) {
+  // Full kaleidoscope — the most complex symmetry
+  let phase = (col * 0.2 + row * 0.7) + time;
+  let alpha = map(sin(phase * 0.6), -1, 1, 100, 255) * transitionT;
+  
+  push();
+  translate(s/2, s/2);
+  
+  // 6-fold with mirror = 12 segments
+  for (let r = 0; r < 6; r++) {
+    for (let m = 0; m < 2; m++) {
+      push();
+      rotate(r * TWO_PI / 6);
+      if (m === 1) scale(-1, 1);
+      
+      // Coral branch
+      stroke(red(palette.coral), green(palette.coral), blue(palette.coral), alpha * 0.5);
+      strokeWeight(2);
+      noFill();
+      let bx = 8;
+      let by = -5;
+      line(3, 0, bx, by);
+      
+      let sway = sin(phase * 1.5 + r) * 3;
+      line(bx, by, bx + 8 + sway, by - 10);
+      line(bx, by, bx + 12, by - 3 + sway);
+      
+      // Coral tips
+      fill(red(palette.coral), green(palette.coral), blue(palette.coral), alpha * 0.4);
+      noStroke();
+      ellipse(bx + 8 + sway, by - 10, 4, 4);
+      ellipse(bx + 12, by - 3 + sway, 3, 3);
+      
+      // Tiny polyp
+      fill(red(palette.glow1), green(palette.glow1), blue(palette.glow1), alpha * 0.4);
+      let polyX = bx + 5;
+      let polyY = by - 5;
+      ellipse(polyX, polyY, 2 + sin(phase * 3 + r) * 1, 2 + sin(phase * 3 + r) * 1);
+      
+      pop();
+    }
+  }
+  
+  // Center: glowing urchin
+  let urchinPulse = map(sin(phase * 2), -1, 1, 0.4, 1);
+  fill(red(palette.glow3), green(palette.glow3), blue(palette.glow3), alpha * urchinPulse * 0.4);
+  noStroke();
+  ellipse(0, 0, 12, 12);
+  fill(255, alpha * urchinPulse * 0.3);
+  ellipse(0, 0, 6, 6);
+  
+  // Urchin spines
+  stroke(red(palette.glow3), green(palette.glow3), blue(palette.glow3), alpha * 0.3);
+  strokeWeight(0.5);
+  for (let sp = 0; sp < 12; sp++) {
+    let spAng = sp * TWO_PI / 12 + time * 0.3;
+    let spLen = 8 + sin(phase * 2 + sp) * 3;
+    line(0, 0, cos(spAng) * spLen, sin(spAng) * spLen);
+  }
+  
+  pop();
+}
+
+function drawVignette() {
+  // Soft dark edges
+  noStroke();
+  let maxDim = max(width, height);
+  for (let i = 0; i < 40; i++) {
+    let t = map(i, 0, 39, 1, 0);
+    let a = t * t * 120;
+    fill(8, 12, 28, a);
+    let margin = map(i, 0, 39, 0, maxDim * 0.35);
+    rect(0, 0, margin, height); // left
+    rect(width - margin, 0, margin, height); // right
+    rect(0, 0, width, margin); // top
+    rect(0, height - margin, width, margin); // bottom
+  }
+  
+  // Group name display
+  fill(255, 180 * transitionT);
+  noStroke();
+  textSize(14);
+  textAlign(CENTER);
+  text(groupNames[currentGroup], width/2, height - 40);
+}
+
+function mousePressed() {
+  currentGroup = (currentGroup + 1) % groupNames.length;
+  transitionT = 0;
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+</script>
+</body>
+</html>
