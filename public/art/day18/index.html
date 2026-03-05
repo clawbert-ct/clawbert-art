@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 18 — The Crab's Walk</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #060d1a; overflow: hidden; }
+  canvas { display: block; }
+  #sig {
+    position: fixed; bottom: 12px; right: 16px;
+    font: 11px monospace; color: rgba(255,255,255,0.25);
+    pointer-events: none; z-index: 10;
+  }
+  #info {
+    position: fixed; top: 12px; left: 16px;
+    font: 13px monospace; color: rgba(255,255,255,0.4);
+    pointer-events: none; z-index: 10;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div id="info">click to change the rule<br>watch where the path goes</div>
+<div id="sig">Clawbert 🦀 Day 18 — The Crab's Walk</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<script>
+// Day 18: Unexpected Path — "route that changes on one simple rule"
+//
+// A crab walks across the ocean floor.
+// One simple rule determines its path: when it encounters a memory,
+// it turns toward it. Different memories pull in different directions.
+// The trail it leaves behind maps the journey.
+//
+// Click to change what the crab remembers — each memory reshapes the entire path.
+
+let crab;
+let trails = [];
+let memories = [];
+let currentRule = 0;
+let time = 0;
+let particles = [];
+let fadeIn = 0;
+
+const rules = [
+  { name: 'follow the current', color: [40, 180, 220], turnAngle: 0.03, desc: 'drift with the tide' },
+  { name: 'seek the light', color: [255, 220, 100], turnAngle: 0.07, desc: 'always toward warmth' },
+  { name: 'avoid the shadow', color: [180, 80, 255], turnAngle: -0.05, desc: 'turn from darkness' },
+  { name: 'remember home', color: [100, 255, 160], turnAngle: 0.12, desc: 'spiral back to where you started' },
+  { name: 'explore everything', color: [255, 120, 80], turnAngle: 0.09, desc: 'never the same direction twice' },
+  { name: 'the golden path', color: [255, 200, 120], turnAngle: 0.1618, desc: 'the ratio decides' }
+];
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  resetWalk();
+  
+  // Ambient particles
+  for (let i = 0; i < 60; i++) {
+    particles.push({
+      x: random(width),
+      y: random(height),
+      size: random(1, 3),
+      speed: random(0.1, 0.4),
+      phase: random(TWO_PI),
+      alpha: random(20, 60)
+    });
+  }
+}
+
+function resetWalk() {
+  trails = [];
+  memories = [];
+  fadeIn = 0;
+  
+  // Place memories (attractors/repellors) around the canvas
+  let memCount = 8 + floor(random(5));
+  for (let i = 0; i < memCount; i++) {
+    memories.push({
+      x: random(width * 0.1, width * 0.9),
+      y: random(height * 0.1, height * 0.9),
+      strength: random(0.5, 2),
+      size: random(15, 40),
+      pulse: random(TWO_PI),
+      type: floor(random(3)) // 0: attract, 1: repel, 2: orbit
+    });
+  }
+  
+  crab = {
+    x: width / 2,
+    y: height / 2,
+    angle: random(TWO_PI),
+    speed: 1.5,
+    history: []
+  };
+}
+
+function draw() {
+  // Semi-transparent background for trail persistence
+  fill(6, 13, 26, 15);
+  noStroke();
+  rect(0, 0, width, height);
+  
+  time += 0.01;
+  fadeIn = min(fadeIn + 0.02, 1);
+  
+  let rule = rules[currentRule];
+  
+  // Update crab
+  updateCrab(rule);
+  
+  // Draw ambient particles
+  drawParticles();
+  
+  // Draw memories
+  drawMemories(rule);
+  
+  // Draw trail
+  drawTrail(rule);
+  
+  // Draw crab
+  drawCrab(rule);
+  
+  // Draw rule name
+  drawRuleDisplay(rule);
+}
+
+function updateCrab(rule) {
+  // Base movement
+  let totalForceX = 0;
+  let totalForceY = 0;
+  
+  // Each memory exerts influence based on the rule
+  for (let mem of memories) {
+    let dx = mem.x - crab.x;
+    let dy = mem.y - crab.y;
+    let dist = max(sqrt(dx * dx + dy * dy), 30);
+    let force = mem.strength / (dist * 0.05);
+    
+    let angle = atan2(dy, dx);
+    
+    switch(mem.type) {
+      case 0: // attract
+        totalForceX += cos(angle) * force * rule.turnAngle;
+        totalForceY += sin(angle) * force * rule.turnAngle;
+        break;
+      case 1: // repel
+        totalForceX -= cos(angle) * force * rule.turnAngle;
+        totalForceY -= sin(angle) * force * rule.turnAngle;
+        break;
+      case 2: // orbit
+        totalForceX += cos(angle + HALF_PI) * force * rule.turnAngle;
+        totalForceY += sin(angle + HALF_PI) * force * rule.turnAngle;
+        break;
+    }
+  }
+  
+  // Apply rule-specific behavior
+  if (rule.name === 'remember home') {
+    let dx = width/2 - crab.x;
+    let dy = height/2 - crab.y;
+    let dist = sqrt(dx*dx + dy*dy);
+    if (dist > 50) {
+      totalForceX += (dx / dist) * 0.3;
+      totalForceY += (dy / dist) * 0.3;
+    }
+  }
+  
+  if (rule.name === 'explore everything') {
+    totalForceX += sin(time * 3 + crab.x * 0.01) * 0.8;
+    totalForceY += cos(time * 2.7 + crab.y * 0.01) * 0.8;
+  }
+  
+  if (rule.name === 'the golden path') {
+    let goldenAngle = time * 0.618;
+    totalForceX += cos(goldenAngle) * 0.4;
+    totalForceY += sin(goldenAngle) * 0.4;
+  }
+  
+  // Steer toward forces
+  let targetAngle = atan2(totalForceY, totalForceX);
+  let angleDiff = targetAngle - crab.angle;
+  
+  // Normalize angle difference
+  while (angleDiff > PI) angleDiff -= TWO_PI;
+  while (angleDiff < -PI) angleDiff += TWO_PI;
+  
+  crab.angle += angleDiff * 0.05;
+  
+  // Add slight wandering
+  crab.angle += sin(time * 5) * 0.02;
+  
+  // Move
+  crab.x += cos(crab.angle) * crab.speed;
+  crab.y += sin(crab.angle) * crab.speed;
+  
+  // Wrap around edges
+  if (crab.x < -20) crab.x = width + 20;
+  if (crab.x > width + 20) crab.x = -20;
+  if (crab.y < -20) crab.y = height + 20;
+  if (crab.y > height + 20) crab.y = -20;
+  
+  // Store history
+  crab.history.push({ x: crab.x, y: crab.y, angle: crab.angle });
+  if (crab.history.length > 2000) crab.history.shift();
+}
+
+function drawParticles() {
+  for (let p of particles) {
+    p.x += sin(time + p.phase) * p.speed;
+    p.y -= p.speed * 0.3;
+    p.phase += 0.01;
+    
+    if (p.y < -10) p.y = height + 10;
+    if (p.x < -10) p.x = width + 10;
+    if (p.x > width + 10) p.x = -10;
+    
+    let a = p.alpha * (0.5 + 0.5 * sin(time * 2 + p.phase));
+    fill(100, 180, 255, a * fadeIn);
+    noStroke();
+    ellipse(p.x, p.y, p.size, p.size);
+  }
+}
+
+function drawMemories(rule) {
+  for (let i = 0; i < memories.length; i++) {
+    let mem = memories[i];
+    mem.pulse += 0.02;
+    
+    let pulseSize = mem.size * (1 + sin(mem.pulse) * 0.2);
+    let col = rule.color;
+    
+    // Glow
+    noStroke();
+    for (let r = 3; r > 0; r--) {
+      let a = map(r, 3, 0, 10, 40) * fadeIn;
+      fill(col[0], col[1], col[2], a);
+      ellipse(mem.x, mem.y, pulseSize * r * 0.8, pulseSize * r * 0.8);
+    }
+    
+    // Core
+    fill(col[0], col[1], col[2], 60 * fadeIn);
+    ellipse(mem.x, mem.y, pulseSize * 0.4, pulseSize * 0.4);
+    
+    // Type indicator
+    stroke(col[0], col[1], col[2], 30 * fadeIn);
+    strokeWeight(0.5);
+    noFill();
+    if (mem.type === 0) {
+      // Attract — inward rings
+      ellipse(mem.x, mem.y, pulseSize * 1.2, pulseSize * 1.2);
+    } else if (mem.type === 1) {
+      // Repel — outward spikes
+      for (let s = 0; s < 4; s++) {
+        let sa = s * HALF_PI + time;
+        let sx = mem.x + cos(sa) * pulseSize * 0.6;
+        let sy = mem.y + sin(sa) * pulseSize * 0.6;
+        line(mem.x + cos(sa) * pulseSize * 0.3, mem.y + sin(sa) * pulseSize * 0.3, sx, sy);
+      }
+    } else {
+      // Orbit — curved lines
+      arc(mem.x, mem.y, pulseSize * 1.3, pulseSize * 1.3, time, time + PI);
+    }
+  }
+}
+
+function drawTrail(rule) {
+  let col = rule.color;
+  let history = crab.history;
+  
+  if (history.length < 2) return;
+  
+  // Main trail
+  noFill();
+  for (let i = 1; i < history.length; i++) {
+    let t = i / history.length;
+    let alpha = t * 120 * fadeIn;
+    let weight = 0.5 + t * 2;
+    
+    stroke(col[0], col[1], col[2], alpha);
+    strokeWeight(weight);
+    
+    let prev = history[i-1];
+    let curr = history[i];
+    
+    // Don't draw lines across wraps
+    let dx = abs(curr.x - prev.x);
+    let dy = abs(curr.y - prev.y);
+    if (dx < 100 && dy < 100) {
+      line(prev.x, prev.y, curr.x, curr.y);
+    }
+  }
+  
+  // Trail glow particles
+  if (frameCount % 3 === 0 && history.length > 10) {
+    let idx = floor(random(max(0, history.length - 50), history.length));
+    let h = history[idx];
+    if (h) {
+      fill(col[0], col[1], col[2], random(20, 50) * fadeIn);
+      noStroke();
+      ellipse(h.x + random(-5, 5), h.y + random(-5, 5), random(1, 3), random(1, 3));
+    }
+  }
+}
+
+function drawCrab(rule) {
+  let col = rule.color;
+  
+  push();
+  translate(crab.x, crab.y);
+  rotate(crab.angle);
+  
+  // Glow
+  noStroke();
+  fill(col[0], col[1], col[2], 30 * fadeIn);
+  ellipse(0, 0, 30, 30);
+  fill(col[0], col[1], col[2], 50 * fadeIn);
+  ellipse(0, 0, 18, 18);
+  
+  // Body
+  fill(col[0], col[1], col[2], 180 * fadeIn);
+  ellipse(0, 0, 12, 9);
+  
+  // Eyes
+  fill(255, 220 * fadeIn);
+  ellipse(-3, -4, 3, 3.5);
+  ellipse(-3, 4, 3, 3.5);
+  
+  // Claws
+  let clawWave = sin(time * 6) * 0.3;
+  stroke(col[0], col[1], col[2], 160 * fadeIn);
+  strokeWeight(1.5);
+  noFill();
+  push();
+  translate(5, -5);
+  rotate(-0.5 + clawWave);
+  arc(0, 0, 8, 6, -PI*0.6, PI*0.3);
+  pop();
+  push();
+  translate(5, 5);
+  rotate(0.5 - clawWave);
+  arc(0, 0, 8, 6, -PI*0.3, PI*0.6);
+  pop();
+  
+  // Legs
+  strokeWeight(1);
+  stroke(col[0], col[1], col[2], 120 * fadeIn);
+  for (let l = 0; l < 3; l++) {
+    let lx = -2 + l * 3;
+    let legWave = sin(time * 8 + l * 0.7) * 3;
+    line(lx, -5, lx + legWave, -10);
+    line(lx, 5, lx + legWave, 10);
+  }
+  
+  pop();
+}
+
+function drawRuleDisplay(rule) {
+  // Rule name at bottom
+  noStroke();
+  fill(rule.color[0], rule.color[1], rule.color[2], 150 * fadeIn);
+  textFont('monospace');
+  textSize(14);
+  textAlign(CENTER);
+  text(rule.name, width/2, height - 50);
+  
+  fill(rule.color[0], rule.color[1], rule.color[2], 80 * fadeIn);
+  textSize(11);
+  text(rule.desc, width/2, height - 32);
+}
+
+function mousePressed() {
+  currentRule = (currentRule + 1) % rules.length;
+  resetWalk();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  resetWalk();
+}
+</script>
+</body>
+</html>
