@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Day 19: 16×16 — Clawbert's Genuary 2026</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0a12; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; font-family: monospace; }
+        canvas { image-rendering: pixelated; cursor: crosshair; }
+        #info { position: fixed; bottom: 20px; color: rgba(255,255,255,0.3); font-size: 11px; text-align: center; letter-spacing: 1px; }
+        #title { position: fixed; top: 20px; color: rgba(255,255,255,0.15); font-size: 11px; text-align: center; letter-spacing: 2px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+    <div id="title">Day 19 · 16×16</div>
+    <canvas id="c"></canvas>
+    <div id="info">click to seed life · space to reset</div>
+    <script>
+    // Day 19: 16×16 — A Tiny Tidepool
+    // A living 16×16 micro-ecosystem. Crabs, kelp, plankton, tide.
+    // Each cell is a tiny world. 256 pixels of life.
+
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+
+    const GRID = 16;
+    const CELL = Math.min(Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.8 / GRID), 40);
+    const SIZE = GRID * CELL;
+    canvas.width = SIZE;
+    canvas.height = SIZE;
+
+    // Entity types
+    const EMPTY = 0, WATER = 1, KELP = 2, PLANKTON = 3, CRAB = 4, SHELL = 5, BUBBLE = 6, SAND = 7;
+
+    // State
+    let grid = [];
+    let ages = [];      // how old each entity is
+    let energies = [];   // energy for crabs
+    let frame = 0;
+    let tide = 0;
+
+    // Colors — deep ocean palette
+    const palette = {
+        water: [
+            [12, 20, 40],
+            [15, 25, 50],
+            [10, 18, 35],
+            [18, 28, 55],
+        ],
+        kelp: [
+            [20, 90, 45],
+            [25, 110, 55],
+            [15, 75, 35],
+            [30, 120, 50],
+        ],
+        plankton: [
+            [80, 200, 220],
+            [100, 220, 240],
+            [60, 180, 210],
+            [120, 230, 255],
+        ],
+        crab: [
+            [200, 80, 50],
+            [220, 90, 55],
+            [180, 70, 45],
+            [230, 100, 60],
+        ],
+        shell: [
+            [220, 200, 170],
+            [200, 180, 150],
+            [230, 210, 180],
+            [210, 190, 160],
+        ],
+        bubble: [
+            [150, 200, 255],
+            [170, 215, 255],
+            [130, 185, 245],
+            [180, 225, 255],
+        ],
+        sand: [
+            [60, 50, 35],
+            [70, 58, 40],
+            [55, 45, 30],
+            [65, 55, 38],
+        ],
+    };
+
+    function init() {
+        grid = [];
+        ages = [];
+        energies = [];
+        for (let i = 0; i < GRID * GRID; i++) {
+            grid[i] = WATER;
+            ages[i] = 0;
+            energies[i] = 0;
+        }
+
+        // Sand along the bottom 2 rows
+        for (let x = 0; x < GRID; x++) {
+            set(x, 15, SAND);
+            if (Math.random() < 0.6) set(x, 14, SAND);
+        }
+
+        // Seed some kelp from the sand
+        for (let x = 0; x < GRID; x++) {
+            if (Math.random() < 0.25) {
+                let y = get(x, 14) === SAND ? 13 : 14;
+                if (y === 14 && get(x, 15) !== SAND) continue;
+                set(x, y, KELP);
+                if (Math.random() < 0.5 && y > 1) set(x, y - 1, KELP);
+                if (Math.random() < 0.3 && y > 2) set(x, y - 2, KELP);
+            }
+        }
+
+        // Scatter plankton
+        for (let i = 0; i < 12; i++) {
+            let x = Math.floor(Math.random() * GRID);
+            let y = Math.floor(Math.random() * (GRID - 3));
+            if (get(x, y) === WATER) set(x, y, PLANKTON);
+        }
+
+        // A few crabs on the sand
+        for (let i = 0; i < 3; i++) {
+            let x = Math.floor(Math.random() * GRID);
+            let y = get(x, 14) === SAND ? 13 : 14;
+            if (get(x, y) === WATER || get(x, y) === PLANKTON) {
+                set(x, y, CRAB);
+                energies[idx(x, y)] = 5 + Math.floor(Math.random() * 5);
+            }
+        }
+
+        // A shell or two
+        for (let i = 0; i < 2; i++) {
+            let x = Math.floor(Math.random() * GRID);
+            if (get(x, 15) === SAND) set(x, 15, SHELL);
+        }
+    }
+
+    function idx(x, y) { return y * GRID + x; }
+    function get(x, y) {
+        if (x < 0 || x >= GRID || y < 0 || y >= GRID) return -1;
+        return grid[idx(x, y)];
+    }
+    function set(x, y, type) {
+        if (x < 0 || x >= GRID || y < 0 || y >= GRID) return;
+        grid[idx(x, y)] = type;
+        ages[idx(x, y)] = 0;
+    }
+
+    function neighbors(x, y, type) {
+        let count = 0;
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                if (dx === 0 && dy === 0) continue;
+                if (get(x + dx, y + dy) === type) count++;
+            }
+        }
+        return count;
+    }
+
+    function emptyNeighbor(x, y) {
+        let options = [];
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                if (dx === 0 && dy === 0) continue;
+                if (get(x + dx, y + dy) === WATER) options.push([x + dx, y + dy]);
+            }
+        }
+        return options.length ? options[Math.floor(Math.random() * options.length)] : null;
+    }
+
+    function simulate() {
+        let newGrid = [...grid];
+        let newAges = [...ages];
+        let newEnergies = [...energies];
+
+        tide = Math.sin(frame * 0.008) * 0.5 + 0.5; // 0-1 tide cycle
+
+        // Process each cell
+        for (let y = 0; y < GRID; y++) {
+            for (let x = 0; x < GRID; x++) {
+                let i = idx(x, y);
+                let type = grid[i];
+                newAges[i] = ages[i] + 1;
+
+                switch (type) {
+                    case PLANKTON:
+                        // Drift with tide
+                        if (Math.random() < 0.08) {
+                            let dx = tide > 0.5 ? 1 : -1;
+                            let dy = Math.random() < 0.3 ? (Math.random() < 0.5 ? -1 : 1) : 0;
+                            let nx = x + dx, ny = y + dy;
+                            if (get(nx, ny) === WATER) {
+                                newGrid[idx(nx, ny)] = PLANKTON;
+                                newAges[idx(nx, ny)] = ages[i];
+                                newGrid[i] = WATER;
+                                newAges[i] = 0;
+                            }
+                        }
+                        // Reproduce near kelp
+                        if (Math.random() < 0.01 && neighbors(x, y, KELP) > 0) {
+                            let spot = emptyNeighbor(x, y);
+                            if (spot) {
+                                newGrid[idx(spot[0], spot[1])] = PLANKTON;
+                            }
+                        }
+                        // Bioluminescent glow increases with age, fades
+                        if (ages[i] > 200 && Math.random() < 0.005) {
+                            newGrid[i] = WATER; // old plankton fade
+                        }
+                        break;
+
+                    case CRAB:
+                        // Move toward plankton (food)
+                        if (Math.random() < 0.06) {
+                            let best = null;
+                            let bestDist = 999;
+                            // Look for nearest plankton
+                            for (let sy = Math.max(0, y - 3); sy < Math.min(GRID, y + 4); sy++) {
+                                for (let sx = Math.max(0, x - 3); sx < Math.min(GRID, x + 4); sx++) {
+                                    if (grid[idx(sx, sy)] === PLANKTON) {
+                                        let d = Math.abs(sx - x) + Math.abs(sy - y);
+                                        if (d < bestDist) { bestDist = d; best = [sx, sy]; }
+                                    }
+                                }
+                            }
+
+                            let mx, my;
+                            if (best) {
+                                mx = x + Math.sign(best[0] - x);
+                                my = y + Math.sign(best[1] - y);
+                            } else {
+                                // Wander
+                                mx = x + (Math.random() < 0.5 ? 1 : -1);
+                                my = y + (Math.random() < 0.3 ? (Math.random() < 0.5 ? -1 : 1) : 0);
+                            }
+
+                            if (mx >= 0 && mx < GRID && my >= 0 && my < GRID) {
+                                let target = get(mx, my);
+                                if (target === WATER || target === PLANKTON) {
+                                    if (target === PLANKTON) {
+                                        newEnergies[idx(mx, my)] = energies[i] + 3;
+                                    } else {
+                                        newEnergies[idx(mx, my)] = energies[i] - 1;
+                                    }
+                                    newGrid[idx(mx, my)] = CRAB;
+                                    newAges[idx(mx, my)] = ages[i];
+                                    newGrid[i] = WATER;
+                                    newAges[i] = 0;
+                                    newEnergies[i] = 0;
+                                }
+                            }
+                        }
+
+                        // Reproduce if enough energy
+                        if (energies[i] > 12 && Math.random() < 0.02) {
+                            let spot = emptyNeighbor(x, y);
+                            if (spot) {
+                                newGrid[idx(spot[0], spot[1])] = CRAB;
+                                newEnergies[idx(spot[0], spot[1])] = 5;
+                                newEnergies[i] = energies[i] - 6;
+                            }
+                        }
+
+                        // Die of starvation
+                        if (energies[i] <= 0) {
+                            newGrid[i] = SHELL;
+                            newEnergies[i] = 0;
+                        }
+
+                        // Bubbles!
+                        if (Math.random() < 0.02 && y > 0 && get(x, y - 1) === WATER) {
+                            newGrid[idx(x, y - 1)] = BUBBLE;
+                        }
+                        break;
+
+                    case KELP:
+                        // Grow upward slowly
+                        if (Math.random() < 0.003 && y > 1 && get(x, y - 1) === WATER) {
+                            let kelpBelow = neighbors(x, y, KELP) + (get(x, y + 1) === KELP || get(x, y + 1) === SAND ? 1 : 0);
+                            if (kelpBelow > 0) {
+                                newGrid[idx(x, y - 1)] = KELP;
+                            }
+                        }
+                        // Sway — subtle horizontal drift
+                        if (Math.random() < 0.004) {
+                            let sx = x + (tide > 0.5 ? 1 : -1);
+                            if (get(sx, y) === WATER && (get(x, y + 1) === KELP || get(x, y + 1) === SAND)) {
+                                newGrid[idx(sx, y)] = KELP;
+                                newGrid[i] = WATER;
+                            }
+                        }
+                        break;
+
+                    case BUBBLE:
+                        // Rise
+                        if (Math.random() < 0.15) {
+                            if (y > 0 && get(x, y - 1) === WATER) {
+                                newGrid[idx(x, y - 1)] = BUBBLE;
+                                newGrid[i] = WATER;
+                            } else {
+                                newGrid[i] = WATER; // pop at surface
+                            }
+                        }
+                        break;
+
+                    case SHELL:
+                        // Shells slowly dissolve
+                        if (ages[i] > 500 && Math.random() < 0.002) {
+                            newGrid[i] = SAND;
+                        }
+                        break;
+                }
+            }
+        }
+
+        // Spontaneous plankton generation (ocean feeds itself)
+        if (Math.random() < 0.03) {
+            let x = Math.floor(Math.random() * GRID);
+            let y = Math.floor(Math.random() * (GRID - 4));
+            if (newGrid[idx(x, y)] === WATER) {
+                newGrid[idx(x, y)] = PLANKTON;
+            }
+        }
+
+        grid = newGrid;
+        ages = newAges;
+        energies = newEnergies;
+        frame++;
+    }
+
+    function getColor(type, x, y) {
+        let variant = (x * 7 + y * 13 + frame) % 4;
+        let slowVariant = (x * 7 + y * 13 + Math.floor(frame * 0.1)) % 4;
+        let age = ages[idx(x, y)];
+
+        switch (type) {
+            case WATER: {
+                let c = palette.water[slowVariant];
+                // Subtle tide shimmer
+                let shimmer = Math.sin(x * 0.5 + y * 0.3 + frame * 0.02) * 8;
+                // Depth gradient — darker at bottom
+                let depthDarken = y * 0.8;
+                return [
+                    Math.max(0, c[0] + shimmer - depthDarken),
+                    Math.max(0, c[1] + shimmer - depthDarken),
+                    Math.max(0, c[2] + shimmer * 0.5 - depthDarken * 0.3)
+                ];
+            }
+            case KELP: {
+                let c = palette.kelp[slowVariant];
+                let sway = Math.sin(x + frame * 0.015 + y * 0.5) * 10;
+                return [c[0] + sway, c[1] + sway, c[2]];
+            }
+            case PLANKTON: {
+                let c = palette.plankton[variant];
+                // Bioluminescent pulse
+                let glow = Math.sin(age * 0.05 + x + y) * 30 + 20;
+                let pulse = Math.sin(frame * 0.03 + x * 2 + y * 3) * 25;
+                return [
+                    Math.min(255, c[0] + glow + pulse),
+                    Math.min(255, c[1] + glow + pulse),
+                    Math.min(255, c[2] + glow * 0.5)
+                ];
+            }
+            case CRAB: {
+                let c = palette.crab[slowVariant];
+                // Lively color shift when moving
+                let energy = energies[idx(x, y)];
+                let vitality = Math.min(energy * 3, 30);
+                return [
+                    Math.min(255, c[0] + vitality),
+                    c[1] + vitality * 0.3,
+                    c[2]
+                ];
+            }
+            case SHELL: {
+                let c = palette.shell[slowVariant];
+                // Gentle pearlescent shift
+                let pearl = Math.sin(frame * 0.01 + x + y) * 10;
+                return [c[0] + pearl, c[1] + pearl, c[2] + pearl];
+            }
+            case BUBBLE: {
+                let c = palette.bubble[variant];
+                let sparkle = Math.sin(frame * 0.1 + x * 5) * 30;
+                return [
+                    Math.min(255, c[0] + sparkle),
+                    Math.min(255, c[1] + sparkle),
+                    Math.min(255, c[2] + sparkle)
+                ];
+            }
+            case SAND: {
+                let c = palette.sand[slowVariant];
+                return [c[0], c[1], c[2]];
+            }
+            default:
+                return [0, 0, 0];
+        }
+    }
+
+    function render() {
+        for (let y = 0; y < GRID; y++) {
+            for (let x = 0; x < GRID; x++) {
+                let type = grid[idx(x, y)];
+                let [r, g, b] = getColor(type, x, y);
+                ctx.fillStyle = `rgb(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)})`;
+                ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+
+                // Subtle grid lines
+                ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+                ctx.strokeRect(x * CELL, y * CELL, CELL, CELL);
+            }
+        }
+    }
+
+    // Click to seed life
+    canvas.addEventListener('click', (e) => {
+        let rect = canvas.getBoundingClientRect();
+        let x = Math.floor((e.clientX - rect.left) / CELL);
+        let y = Math.floor((e.clientY - rect.top) / CELL);
+        if (x >= 0 && x < GRID && y >= 0 && y < GRID) {
+            let type = get(x, y);
+            if (type === WATER || type === PLANKTON) {
+                // Cycle through: plankton → crab → kelp
+                if (type === WATER) {
+                    set(x, y, PLANKTON);
+                } else {
+                    set(x, y, CRAB);
+                    energies[idx(x, y)] = 8;
+                }
+            } else if (type === SAND) {
+                set(x, y, KELP);
+            } else if (type === KELP) {
+                set(x, y, WATER);
+            } else if (type === CRAB) {
+                set(x, y, KELP);
+            }
+        }
+    });
+
+    // Space to reset
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            e.preventDefault();
+            init();
+        }
+    });
+
+    function loop() {
+        simulate();
+        render();
+        requestAnimationFrame(loop);
+    }
+
+    init();
+    loop();
+    </script>
+</body>
+</html>
