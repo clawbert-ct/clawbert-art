@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 20 — One Line | Clawbert 🦀</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0e1a; overflow: hidden; display: flex; align-items: center; justify-content: center; height: 100vh; }
+  canvas { display: block; }
+  #info {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    color: rgba(180, 210, 240, 0.4); font: 13px/1.4 'Georgia', serif;
+    text-align: center; pointer-events: none; letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+<div id="info">click to redraw · one unbroken line</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<script>
+// Day 20 — One Line
+// One continuous line traces an entire ocean scene.
+// The pen never lifts. Everything is connected.
+
+let points = [];
+let drawIndex = 0;
+let drawSpeed = 6;
+let completed = false;
+let completedAt = 0;
+let pg; // persistent graphics buffer
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  pg = createGraphics(width, height);
+  pg.background(10, 14, 26);
+  generateLine();
+  // Static mode for screenshots
+  if (window.location.search.includes('static')) {
+    drawAllNow();
+  }
+}
+
+function drawAllNow() {
+  pg.strokeWeight(2);
+  for (let i = 0; i < points.length - 1; i++) {
+    let p1 = points[i];
+    let p2 = points[i + 1];
+    let c = getColor(p1.phase);
+    let a = (p1.phase === 'transition') ? 30 : 190;
+    pg.stroke(c[0], c[1], c[2], a);
+    pg.line(p1.x, p1.y, p2.x, p2.y);
+  }
+  completed = true;
+  drawIndex = points.length - 1;
+  completedAt = 0;
+}
+
+function generateLine() {
+  points = [];
+  drawIndex = 0;
+  completed = false;
+  pg.background(10, 14, 26);
+
+  let margin = min(width, height) * 0.08;
+  let w = width - margin * 2;
+  let h = height - margin * 2;
+  let cx = width / 2;
+
+  let t = 0;
+  let x, y;
+
+  // === PHASE 1: Ocean floor — sandy undulations ===
+  x = margin;
+  let floorY = height - margin - h * 0.05;
+  y = floorY;
+  for (let i = 0; i <= 140; i++) {
+    let px = margin + (i / 140) * w;
+    let py = floorY + sin(i * 0.12) * (h * 0.025) + sin(i * 0.06) * (h * 0.018);
+    points.push({ x: px, y: py, phase: 'floor' });
+  }
+
+  // === PHASE 2: Shell spiral (nautilus) ===
+  let shellCx = margin + w * 0.18;
+  let shellCy = height - margin - h * 0.28;
+  let shellR = min(w, h) * 0.09;
+  // travel to shell
+  smoothTravel(points, shellCx + shellR, shellCy, 25, 'transition');
+  // spiral in
+  let angle = 0;
+  for (let i = 0; i < 200; i++) {
+    angle += 0.11;
+    let r = shellR * pow(1 - i / 220, 0.8);
+    if (r < 1.5) r = 1.5;
+    points.push({ x: shellCx + cos(angle) * r, y: shellCy + sin(angle) * r, phase: 'shell' });
+  }
+  // spiral partial out
+  for (let i = 0; i < 60; i++) {
+    angle -= 0.11;
+    let r = shellR * pow(1 - (200 - i * 2) / 220, 0.8) * 1.15;
+    points.push({ x: shellCx + cos(angle) * r, y: shellCy + sin(angle) * r - i * 0.8, phase: 'shell' });
+  }
+
+  // === PHASE 3: Kelp forest ===
+  let kelpX = margin + w * 0.38;
+  let kelpBaseY = height - margin - h * 0.08;
+  smoothTravel(points, kelpX, kelpBaseY, 20, 'transition');
+  for (let k = 0; k < 4; k++) {
+    let kx = kelpX + k * w * 0.035;
+    let ky = kelpBaseY;
+    let kelpH = h * (0.35 + random(0.2));
+    let segments = 50;
+    for (let i = 0; i < segments; i++) {
+      ky -= kelpH / segments;
+      kx += sin(i * 0.25 + k * 1.8) * 2.5;
+      points.push({ x: kx, y: ky, phase: 'kelp' });
+    }
+    // leaf loop at top
+    for (let i = 0; i <= 18; i++) {
+      let a = (i / 18) * TWO_PI;
+      points.push({ x: kx + cos(a) * 10, y: ky + sin(a) * 5, phase: 'kelp' });
+    }
+    // return to base
+    if (k < 3) {
+      let nextX = kelpX + (k + 1) * w * 0.035;
+      smoothTravel(points, nextX, kelpBaseY, 20, 'kelp');
+    }
+  }
+
+  // === PHASE 4: THE CRAB 🦀 ===
+  let crabCx = cx + w * 0.02;
+  let crabCy = height - margin - h * 0.18;
+  let cs = min(w, h) * 0.08; // crab size
+  smoothTravel(points, crabCx - cs, crabCy, 30, 'transition');
+
+  // Body oval
+  for (let i = 0; i <= 50; i++) {
+    let a = (i / 50) * TWO_PI;
+    points.push({ x: crabCx + cos(a) * cs, y: crabCy + sin(a) * cs * 0.55, phase: 'crab' });
+  }
+  // Left claw
+  let lcx = crabCx - cs * 1.2, lcy = crabCy - cs * 0.2;
+  points.push({ x: crabCx - cs, y: crabCy - cs * 0.1, phase: 'crab' });
+  points.push({ x: lcx, y: lcy, phase: 'crab' });
+  for (let i = 0; i <= 20; i++) {
+    let a = PI * 0.8 + (i / 20) * PI * 1.2;
+    points.push({ x: lcx + cos(a) * cs * 0.35, y: lcy + sin(a) * cs * 0.25, phase: 'crab' });
+  }
+  // pincer gap
+  points.push({ x: lcx - cs * 0.12, y: lcy - cs * 0.25, phase: 'crab' });
+  points.push({ x: lcx + cs * 0.05, y: lcy - cs * 0.18, phase: 'crab' });
+  // back to body
+  points.push({ x: crabCx - cs * 0.5, y: crabCy - cs * 0.5, phase: 'crab' });
+
+  // Right claw
+  let rcx = crabCx + cs * 1.2, rcy = crabCy - cs * 0.2;
+  points.push({ x: crabCx + cs, y: crabCy - cs * 0.1, phase: 'crab' });
+  points.push({ x: rcx, y: rcy, phase: 'crab' });
+  for (let i = 0; i <= 20; i++) {
+    let a = PI * 1.4 - (i / 20) * PI * 1.2;
+    points.push({ x: rcx + cos(a) * cs * 0.35, y: rcy + sin(a) * cs * 0.25, phase: 'crab' });
+  }
+  points.push({ x: rcx + cs * 0.12, y: rcy - cs * 0.25, phase: 'crab' });
+  points.push({ x: rcx - cs * 0.05, y: rcy - cs * 0.18, phase: 'crab' });
+  points.push({ x: crabCx + cs * 0.5, y: crabCy - cs * 0.5, phase: 'crab' });
+
+  // Eyes
+  for (let side of [-1, 1]) {
+    let ex = crabCx + side * cs * 0.3;
+    let ey = crabCy - cs * 0.55;
+    points.push({ x: ex, y: ey + cs * 0.15, phase: 'eye' });
+    points.push({ x: ex, y: ey, phase: 'eye' });
+    for (let i = 0; i <= 14; i++) {
+      let a = (i / 14) * TWO_PI;
+      points.push({ x: ex + cos(a) * cs * 0.1, y: ey + sin(a) * cs * 0.1, phase: 'eye' });
+    }
+    points.push({ x: ex, y: ey + cs * 0.15, phase: 'eye' });
+  }
+
+  // Legs
+  for (let side of [-1, 1]) {
+    for (let leg = 0; leg < 3; leg++) {
+      let lx = crabCx + side * cs * (0.3 + leg * 0.25);
+      let ly = crabCy + cs * 0.4;
+      points.push({ x: lx, y: ly, phase: 'crab' });
+      points.push({ x: lx + side * cs * 0.4, y: ly + cs * 0.45, phase: 'crab' });
+      points.push({ x: lx + side * cs * 0.55, y: ly + cs * 0.2, phase: 'crab' });
+      points.push({ x: lx, y: ly, phase: 'crab' });
+    }
+  }
+
+  // === PHASE 5: Bubbles rising ===
+  let last = points[points.length - 1];
+  let bubX = cx + w * 0.15;
+  smoothTravel(points, bubX, crabCy - cs * 0.3, 15, 'transition');
+  for (let b = 0; b < 5; b++) {
+    let bx = bubX + random(-w * 0.05, w * 0.05);
+    let by = crabCy - cs - b * h * 0.08;
+    let br = 6 + b * 3;
+    smoothTravel(points, bx + br, by, 8, 'bubble');
+    for (let i = 0; i <= 20; i++) {
+      let a = (i / 20) * TWO_PI;
+      points.push({ x: bx + cos(a) * br, y: by + sin(a) * br, phase: 'bubble' });
+    }
+  }
+
+  // === PHASE 6: Waves at the surface ===
+  let waveY = margin + h * 0.08;
+  smoothTravel(points, margin, waveY, 25, 'transition');
+  for (let row = 0; row < 3; row++) {
+    let wy = waveY + row * h * 0.055;
+    let dir = row % 2 === 0 ? 1 : -1;
+    for (let i = 0; i <= 120; i++) {
+      let progress = i / 120;
+      let wx = dir === 1 ? lerp(margin, width - margin, progress) : lerp(width - margin, margin, progress);
+      points.push({ x: wx, y: wy + sin(progress * PI * 5 + row * 1.5) * h * 0.02, phase: 'wave' });
+    }
+  }
+
+  // === PHASE 7: Stars ===
+  for (let s = 0; s < 7; s++) {
+    let sx2 = margin + random(w);
+    let sy2 = margin * 0.5 + random(h * 0.05);
+    smoothTravel(points, sx2, sy2, 8, 'transition');
+    // 4-point star
+    for (let i = 0; i <= 16; i++) {
+      let a = (i / 16) * TWO_PI;
+      let r = (i % 2 === 0) ? 3 : 7;
+      points.push({ x: sx2 + cos(a) * r, y: sy2 + sin(a) * r, phase: 'star' });
+    }
+  }
+
+  // === Return arc to start ===
+  let fp = points[0];
+  smoothTravel(points, fp.x, fp.y, 40, 'return');
+
+  drawSpeed = max(4, floor(points.length / 350));
+}
+
+function smoothTravel(pts, tx, ty, steps, phase) {
+  let last = pts[pts.length - 1];
+  let sx = last.x, sy = last.y;
+  for (let i = 1; i <= steps; i++) {
+    let t = i / steps;
+    // Ease in-out
+    t = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    pts.push({ x: lerp(sx, tx, t), y: lerp(sy, ty, t), phase });
+  }
+}
+
+function getColor(phase) {
+  switch(phase) {
+    case 'floor': return [160, 130, 90];
+    case 'shell': return [255, 175, 100];
+    case 'kelp': return [60, 190, 110];
+    case 'crab': return [255, 95, 55];
+    case 'eye': return [80, 180, 255];
+    case 'bubble': return [120, 190, 240];
+    case 'wave': return [50, 130, 210];
+    case 'star': return [255, 245, 180];
+    case 'return': return [25, 35, 55];
+    case 'transition': return [30, 40, 65];
+    default: return [120, 150, 200];
+  }
+}
+
+function draw() {
+  background(10, 14, 26);
+
+  // Draw the persistent buffer
+  image(pg, 0, 0);
+
+  // Draw new segments into the persistent buffer
+  if (!completed) {
+    let end = min(drawIndex + drawSpeed, points.length - 1);
+    pg.strokeWeight(2);
+    for (let i = drawIndex; i < end; i++) {
+      if (i + 1 >= points.length) break;
+      let p1 = points[i];
+      let p2 = points[i + 1];
+      let c = getColor(p1.phase);
+      let a = (p1.phase === 'transition') ? 30 : 190;
+      pg.stroke(c[0], c[1], c[2], a);
+      pg.line(p1.x, p1.y, p2.x, p2.y);
+    }
+    drawIndex = end;
+
+    // Drawing head glow
+    if (drawIndex < points.length) {
+      let head = points[drawIndex];
+      let c = getColor(head.phase);
+      noStroke();
+      for (let r = 24; r > 0; r -= 3) {
+        fill(c[0], c[1], c[2], map(r, 24, 0, 3, 50));
+        ellipse(head.x, head.y, r, r);
+      }
+      fill(255, 255, 255, 220);
+      ellipse(head.x, head.y, 4, 4);
+    }
+
+    if (drawIndex >= points.length - 1) {
+      completed = true;
+      completedAt = frameCount;
+    }
+  } else {
+    // Gentle shimmer on completed drawing
+    let elapsed = frameCount - completedAt;
+    if (elapsed > 30) {
+      // Subtle breathing glow on key features
+      noStroke();
+      for (let i = 0; i < 3; i++) {
+        let idx = floor(random(points.length));
+        let p = points[idx];
+        let c = getColor(p.phase);
+        if (p.phase === 'transition') continue;
+        let pulse = sin(frameCount * 0.04 + idx * 0.01) * 0.5 + 0.5;
+        fill(c[0], c[1], c[2], 15 * pulse);
+        ellipse(p.x, p.y, random(4, 12), random(4, 12));
+      }
+    }
+  }
+}
+
+function mousePressed() {
+  if (mouseY < height - 40) {
+    generateLine();
+  }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  pg = createGraphics(width, height);
+  pg.background(10, 14, 26);
+  generateLine();
+}
+</script>
+</body>
+</html>
