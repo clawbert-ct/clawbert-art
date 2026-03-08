@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 22 — Plotter Tidepool | Clawbert</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #faf8f3; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: 'Courier New', monospace; overflow: hidden; }
+  canvas { border: 2px solid #2a2a2a; cursor: crosshair; }
+  #info {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    color: #555; font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+  }
+  #pen-label {
+    position: fixed; top: 20px; right: 20px;
+    color: #888; font-size: 11px; letter-spacing: 1px;
+  }
+  #title {
+    position: fixed; top: 20px; left: 20px;
+    color: #2a2a2a; font-size: 14px; font-weight: bold; letter-spacing: 3px;
+  }
+</style>
+</head>
+<body>
+<div id="title">PLOTTER TIDEPOOL</div>
+<div id="pen-label">PEN 1/4</div>
+<canvas id="c"></canvas>
+<div id="info">CLICK TO REGENERATE · SPACE TO CHANGE PEN SET</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// Size
+const W = Math.min(window.innerWidth - 60, window.innerHeight - 100, 800);
+const H = W;
+canvas.width = W;
+canvas.height = H;
+
+// Pen sets — like real plotter pen carousels
+const penSets = [
+  { name: 'MIDNIGHT INK', colors: ['#1a1a2e', '#16213e', '#0f3460', '#533483'], bg: '#faf8f3' },
+  { name: 'TIDE POOLS', colors: ['#264653', '#2a9d8f', '#e76f51', '#e9c46a'], bg: '#faf8f3' },
+  { name: 'DEEP OCEAN', colors: ['#0b132b', '#1c2541', '#3a506b', '#5bc0be'], bg: '#faf8f3' },
+  { name: 'COPPER & SEA', colors: ['#5f0f40', '#9a031e', '#0f4c5c', '#e36414'], bg: '#f8f4e8' },
+];
+let penSetIdx = 0;
+let pens, bg;
+
+// Seeded random
+let seed = Date.now();
+function rand() {
+  seed = (seed * 16807 + 0) % 2147483647;
+  return (seed - 1) / 2147483646;
+}
+
+function randRange(a, b) { return a + rand() * (b - a); }
+function randInt(a, b) { return Math.floor(randRange(a, b + 1)); }
+function pick(arr) { return arr[randInt(0, arr.length - 1)]; }
+
+// Drawing helpers — all line-based, no fills
+function drawLine(x1, y1, x2, y2, color, width = 1) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
+function drawArc(cx, cy, r, startAngle, endAngle, color, width = 1) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, startAngle, endAngle, false);
+  ctx.stroke();
+}
+
+function drawCircle(cx, cy, r, color, width = 1) {
+  drawArc(cx, cy, r, 0, Math.PI * 2, color, width);
+}
+
+// Hatch fill — diagonal lines within a region (very plotter)
+function hatchRect(x, y, w, h, spacing, angle, color, lineWidth = 0.7) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  const diag = Math.sqrt(w * w + h * h) * 2;
+  const cx = x + w / 2, cy = y + h / 2;
+  const cos = Math.cos(angle), sin = Math.sin(angle);
+  for (let d = -diag / 2; d < diag / 2; d += spacing) {
+    const px = cx + cos * (-diag / 2) - sin * d;
+    const py = cy + sin * (-diag / 2) + cos * d;
+    const qx = cx + cos * (diag / 2) - sin * d;
+    const qy = cy + sin * (diag / 2) + cos * d;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(qx, qy);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function hatchCircle(cx, cy, r, spacing, angle, color, lineWidth = 0.7) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  const diag = r * 3;
+  const cos = Math.cos(angle), sin = Math.sin(angle);
+  for (let d = -diag / 2; d < diag / 2; d += spacing) {
+    const px = cx + cos * (-diag) - sin * d;
+    const py = cy + sin * (-diag) + cos * d;
+    const qx = cx + cos * (diag) - sin * d;
+    const qy = cy + sin * (diag) + cos * d;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(qx, qy);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Spiral shell — logarithmic spiral, pure lines
+function drawShell(cx, cy, size, color, width = 1.2) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  const turns = 3 + rand() * 2;
+  const growth = 0.12 + rand() * 0.06;
+  const startAngle = rand() * Math.PI * 2;
+  for (let t = 0; t < turns * Math.PI * 2; t += 0.05) {
+    const r = size * 0.08 * Math.exp(growth * t);
+    const x = cx + r * Math.cos(t + startAngle);
+    const y = cy + r * Math.sin(t + startAngle);
+    if (t === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+    if (r > size) break;
+  }
+  ctx.stroke();
+
+  // Ribs on the shell
+  const ribCount = randInt(5, 10);
+  for (let i = 0; i < ribCount; i++) {
+    const t = (i / ribCount) * turns * Math.PI * 2 * 0.8;
+    const r1 = size * 0.08 * Math.exp(growth * t);
+    const r2 = r1 * (1 + 0.3 + rand() * 0.2);
+    const angle = t + startAngle;
+    const perpAngle = angle + Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx + r1 * Math.cos(angle), cy + r1 * Math.sin(angle));
+    ctx.lineTo(
+      cx + r1 * Math.cos(angle) + (r2 - r1) * Math.cos(perpAngle) * 0.3,
+      cy + r1 * Math.sin(angle) + (r2 - r1) * Math.sin(perpAngle) * 0.3
+    );
+    ctx.stroke();
+  }
+}
+
+// Crab — geometric, plotter-friendly
+function drawCrab(cx, cy, size, color, width = 1.2) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+
+  // Body — ellipse via arc
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, size * 0.5, size * 0.38, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Inner body pattern — cross-hatching
+  hatchCircle(cx, cy, size * 0.3, size * 0.1, Math.PI / 4, color, 0.5);
+
+  // Eyes
+  const eyeSpread = size * 0.22;
+  const eyeY = cy - size * 0.32;
+  for (let side = -1; side <= 1; side += 2) {
+    const ex = cx + side * eyeSpread;
+    // Eye stalks
+    ctx.beginPath();
+    ctx.moveTo(cx + side * eyeSpread * 0.6, cy - size * 0.2);
+    ctx.lineTo(ex, eyeY);
+    ctx.stroke();
+    drawCircle(ex, eyeY, size * 0.06, color, width);
+    drawCircle(ex, eyeY, size * 0.025, color, width);
+  }
+
+  // Legs — 3 per side
+  for (let side = -1; side <= 1; side += 2) {
+    for (let i = 0; i < 3; i++) {
+      const angle = (side === -1 ? Math.PI * 0.6 : Math.PI * 0.4) + side * i * 0.25;
+      const joint1X = cx + Math.cos(angle) * size * 0.5;
+      const joint1Y = cy + Math.sin(angle) * size * 0.35;
+      const joint2X = joint1X + Math.cos(angle + side * 0.4) * size * 0.35;
+      const joint2Y = joint1Y + Math.abs(Math.sin(angle)) * size * 0.3 + size * 0.1;
+      const tipX = joint2X + side * size * 0.12;
+      const tipY = joint2Y + size * 0.15;
+
+      ctx.beginPath();
+      ctx.moveTo(joint1X, joint1Y);
+      ctx.lineTo(joint2X, joint2Y);
+      ctx.lineTo(tipX, tipY);
+      ctx.stroke();
+    }
+  }
+
+  // Claws
+  for (let side = -1; side <= 1; side += 2) {
+    const clawBase = { x: cx + side * size * 0.5, y: cy - size * 0.1 };
+    const armEnd = { x: clawBase.x + side * size * 0.35, y: clawBase.y - size * 0.2 };
+
+    // Arm
+    ctx.beginPath();
+    ctx.moveTo(clawBase.x, clawBase.y);
+    ctx.lineTo(armEnd.x, armEnd.y);
+    ctx.stroke();
+
+    // Claw pincers
+    const clawSize = size * 0.18;
+    ctx.beginPath();
+    ctx.moveTo(armEnd.x, armEnd.y);
+    ctx.lineTo(armEnd.x + side * clawSize, armEnd.y - clawSize * 0.6);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(armEnd.x, armEnd.y);
+    ctx.lineTo(armEnd.x + side * clawSize, armEnd.y + clawSize * 0.2);
+    ctx.stroke();
+    // Claw arc
+    drawArc(armEnd.x + side * clawSize, armEnd.y - clawSize * 0.2, clawSize * 0.45,
+      side === 1 ? -Math.PI * 0.4 : Math.PI * 0.4,
+      side === 1 ? Math.PI * 0.6 : Math.PI + Math.PI * 0.4,
+      color, width);
+  }
+}
+
+// Kelp strand — flowing bezier curves
+function drawKelp(x, baseY, height, color, width = 1) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+
+  const segments = randInt(4, 7);
+  const segHeight = height / segments;
+  const sway = 15 + rand() * 25;
+
+  ctx.beginPath();
+  ctx.moveTo(x, baseY);
+  for (let i = 0; i < segments; i++) {
+    const sy = baseY - segHeight * (i + 1);
+    const dir = (i % 2 === 0) ? 1 : -1;
+    const cpx = x + dir * sway * (0.5 + rand() * 0.5);
+    const cpy = baseY - segHeight * (i + 0.5);
+    ctx.quadraticCurveTo(cpx, cpy, x + dir * sway * 0.3, sy);
+  }
+  ctx.stroke();
+
+  // Leaves / fronds
+  for (let i = 1; i < segments; i++) {
+    const ly = baseY - segHeight * i;
+    const lx = x + ((i % 2 === 0) ? 1 : -1) * sway * 0.3;
+    const leafDir = (i % 2 === 0) ? 1 : -1;
+    const leafLen = 12 + rand() * 18;
+
+    ctx.beginPath();
+    ctx.moveTo(lx, ly);
+    ctx.quadraticCurveTo(
+      lx + leafDir * leafLen * 0.8, ly - leafLen * 0.3,
+      lx + leafDir * leafLen, ly + leafLen * 0.1
+    );
+    ctx.stroke();
+  }
+}
+
+// Bubbles — circles with tiny highlight arcs
+function drawBubbles(cx, cy, count, spread, color, width = 0.8) {
+  for (let i = 0; i < count; i++) {
+    const bx = cx + (rand() - 0.5) * spread;
+    const by = cy - rand() * spread * 1.5;
+    const br = 2 + rand() * 6;
+    drawCircle(bx, by, br, color, width);
+    // Highlight arc
+    drawArc(bx - br * 0.2, by - br * 0.2, br * 0.5, -Math.PI * 0.8, -Math.PI * 0.2, color, width * 0.6);
+  }
+}
+
+// Starfish — five arms with line detail
+function drawStarfish(cx, cy, size, color, width = 1) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+
+  const arms = 5;
+  const outerR = size;
+  const innerR = size * 0.38;
+  const rotation = rand() * Math.PI * 2;
+
+  ctx.beginPath();
+  for (let i = 0; i < arms * 2; i++) {
+    const angle = rotation + (i * Math.PI) / arms;
+    const r = i % 2 === 0 ? outerR : innerR;
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.stroke();
+
+  // Center dot
+  drawCircle(cx, cy, size * 0.08, color, width);
+
+  // Arm center lines
+  for (let i = 0; i < arms; i++) {
+    const angle = rotation + (i * Math.PI * 2) / arms;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(angle) * outerR * 0.75, cy + Math.sin(angle) * outerR * 0.75);
+    ctx.stroke();
+  }
+}
+
+// Sea urchin — spiky circle
+function drawUrchin(cx, cy, size, color, width = 0.8) {
+  drawCircle(cx, cy, size * 0.4, color, width);
+  hatchCircle(cx, cy, size * 0.35, size * 0.12, rand() * Math.PI, color, 0.4);
+  const spines = randInt(14, 22);
+  for (let i = 0; i < spines; i++) {
+    const angle = (i / spines) * Math.PI * 2 + rand() * 0.15;
+    const len = size * (0.7 + rand() * 0.3);
+    drawLine(
+      cx + Math.cos(angle) * size * 0.4, cy + Math.sin(angle) * size * 0.4,
+      cx + Math.cos(angle) * len, cy + Math.sin(angle) * len,
+      color, width * 0.7
+    );
+  }
+}
+
+// Rocks — irregular polygons with hatching
+function drawRock(cx, cy, size, color, width = 1) {
+  const points = [];
+  const verts = randInt(5, 8);
+  for (let i = 0; i < verts; i++) {
+    const angle = (i / verts) * Math.PI * 2;
+    const r = size * (0.6 + rand() * 0.4);
+    points.push({
+      x: cx + Math.cos(angle) * r,
+      y: cy + Math.sin(angle) * r * 0.6
+    });
+  }
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Hatching on one side
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+  ctx.closePath();
+  ctx.clip();
+  const hatchAngle = rand() * Math.PI;
+  const spacing = 3 + rand() * 3;
+  const diag = size * 3;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 0.4;
+  for (let d = -diag; d < diag; d += spacing) {
+    // Only hatch right half
+    const px = cx + Math.cos(hatchAngle) * (-diag) - Math.sin(hatchAngle) * d;
+    const py = cy + Math.sin(hatchAngle) * (-diag) + Math.cos(hatchAngle) * d;
+    const qx = cx + Math.cos(hatchAngle) * (diag) - Math.sin(hatchAngle) * d;
+    const qy = cy + Math.sin(hatchAngle) * (diag) + Math.cos(hatchAngle) * d;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(qx, qy);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Water surface — gentle waves at top
+function drawWaterSurface(color, width = 1) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  const waveCount = 3;
+  for (let w = 0; w < waveCount; w++) {
+    const y = 30 + w * 18;
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 2) {
+      const wy = y + Math.sin(x * 0.015 + w * 2) * 8 + Math.sin(x * 0.04 + w) * 3;
+      if (x === 0) ctx.moveTo(x, wy);
+      else ctx.lineTo(x, wy);
+    }
+    ctx.stroke();
+  }
+}
+
+// Sandy bottom with line texture
+function drawSeafloor(color, width = 0.8) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+
+  // Main floor line
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 2) {
+    const y = H * 0.78 + Math.sin(x * 0.008) * 15 + Math.sin(x * 0.025) * 8;
+    if (x === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Sand texture — short random dashes
+  ctx.lineWidth = 0.4;
+  for (let i = 0; i < 200; i++) {
+    const x = rand() * W;
+    const baseFloor = H * 0.78 + Math.sin(x * 0.008) * 15 + Math.sin(x * 0.025) * 8;
+    const y = baseFloor + rand() * (H - baseFloor - 10);
+    const len = 2 + rand() * 6;
+    const angle = -0.3 + rand() * 0.6;
+    drawLine(x, y, x + Math.cos(angle) * len, y + Math.sin(angle) * len, color, 0.4);
+  }
+}
+
+// Registration marks — like real plotter output
+function drawRegistration(color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 0.5;
+  const m = 12;
+  const s = 6;
+
+  // Corner marks
+  [[m, m], [W - m, m], [m, H - m], [W - m, H - m]].forEach(([x, y]) => {
+    drawLine(x - s, y, x + s, y, color, 0.5);
+    drawLine(x, y - s, x, y + s, color, 0.5);
+  });
+}
+
+// Main composition
+function generate() {
+  seed = Date.now() + Math.random() * 10000;
+  const set = penSets[penSetIdx];
+  pens = set.colors;
+  bg = set.bg;
+
+  document.getElementById('pen-label').textContent = set.name;
+
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Registration marks
+  drawRegistration(pens[0]);
+
+  // Border
+  ctx.strokeStyle = pens[0];
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(20, 20, W - 40, H - 40);
+
+  // Water surface
+  drawWaterSurface(pens[2], 1);
+
+  // Seafloor
+  drawSeafloor(pens[0], 0.8);
+
+  // Kelp forest — back layer
+  const kelpCount = randInt(5, 9);
+  for (let i = 0; i < kelpCount; i++) {
+    const kx = 50 + rand() * (W - 100);
+    const floorY = H * 0.78 + Math.sin(kx * 0.008) * 15;
+    const kh = 100 + rand() * 200;
+    drawKelp(kx, floorY, kh, pick([pens[1], pens[2]]), 0.8 + rand() * 0.5);
+  }
+
+  // Rocks
+  const rockCount = randInt(3, 6);
+  for (let i = 0; i < rockCount; i++) {
+    const rx = 60 + rand() * (W - 120);
+    const floorY = H * 0.78 + Math.sin(rx * 0.008) * 15;
+    drawRock(rx, floorY - rand() * 10, 15 + rand() * 25, pens[0], 0.8);
+  }
+
+  // Shells
+  const shellCount = randInt(3, 6);
+  for (let i = 0; i < shellCount; i++) {
+    const sx = 60 + rand() * (W - 120);
+    const floorY = H * 0.78 + Math.sin(sx * 0.008) * 15;
+    drawShell(sx, floorY - 5 - rand() * 15, 12 + rand() * 18, pick([pens[1], pens[3]]), 0.9);
+  }
+
+  // Starfish
+  const starCount = randInt(1, 3);
+  for (let i = 0; i < starCount; i++) {
+    const sx = 80 + rand() * (W - 160);
+    const floorY = H * 0.78 + Math.sin(sx * 0.008) * 15;
+    drawStarfish(sx, floorY - 5 - rand() * 8, 10 + rand() * 15, pens[3], 0.9);
+  }
+
+  // Sea urchins
+  const urchinCount = randInt(1, 3);
+  for (let i = 0; i < urchinCount; i++) {
+    const ux = 80 + rand() * (W - 160);
+    const floorY = H * 0.78 + Math.sin(ux * 0.008) * 15;
+    drawUrchin(ux, floorY - 10 - rand() * 10, 10 + rand() * 12, pens[2], 0.7);
+  }
+
+  // Main crab
+  const crabX = W * 0.3 + rand() * W * 0.4;
+  const floorAtCrab = H * 0.78 + Math.sin(crabX * 0.008) * 15;
+  drawCrab(crabX, floorAtCrab - 30 - rand() * 15, 35 + rand() * 15, pens[0], 1.3);
+
+  // Maybe a second smaller crab
+  if (rand() > 0.4) {
+    const cx2 = 60 + rand() * (W - 120);
+    const fy2 = H * 0.78 + Math.sin(cx2 * 0.008) * 15;
+    drawCrab(cx2, fy2 - 15 - rand() * 10, 18 + rand() * 10, pens[1], 0.9);
+  }
+
+  // Bubbles
+  const bubbleClusters = randInt(3, 6);
+  for (let i = 0; i < bubbleClusters; i++) {
+    drawBubbles(
+      60 + rand() * (W - 120),
+      H * 0.3 + rand() * H * 0.4,
+      randInt(3, 8),
+      30 + rand() * 30,
+      pens[2], 0.6
+    );
+  }
+
+  // Floating particles / plankton — tiny dots and dashes
+  for (let i = 0; i < 60; i++) {
+    const px = rand() * W;
+    const py = 70 + rand() * (H * 0.65);
+    const pcolor = pick(pens);
+    if (rand() > 0.5) {
+      drawCircle(px, py, 0.5 + rand() * 1.5, pcolor, 0.4);
+    } else {
+      const len = 1 + rand() * 4;
+      const angle = rand() * Math.PI * 2;
+      drawLine(px, py, px + Math.cos(angle) * len, py + Math.sin(angle) * len, pcolor, 0.4);
+    }
+  }
+
+  // Signature
+  ctx.strokeStyle = pens[0];
+  ctx.lineWidth = 0.6;
+  ctx.font = '9px Courier New';
+  ctx.fillStyle = pens[0];
+  ctx.fillText('CLAWBERT · DAY 22 · GENUARY 2026', 28, H - 28);
+}
+
+// Interaction
+canvas.addEventListener('click', () => {
+  generate();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    penSetIdx = (penSetIdx + 1) % penSets.length;
+    generate();
+  }
+});
+
+generate();
+</script>
+</body>
+</html>
