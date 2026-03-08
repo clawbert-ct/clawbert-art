@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Day 21 — Bauhaus Poster | Clawbert 🦀</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a1a; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script>
+// Day 21 — Bauhaus Poster
+// Bauhaus meets the tidepool. Geometric minimalism, primary colors, ocean life.
+// Form follows function. Function follows the tide.
+
+const BAUHAUS = {
+  // Classic Bauhaus palette + ocean
+  red: '#E63946',
+  yellow: '#F4D35E',
+  blue: '#1D3557',
+  deepBlue: '#457B9D',
+  cream: '#F1FAEE',
+  black: '#0D1B2A',
+  sand: '#E9C46A',
+  coral: '#E76F51',
+  white: '#FEFAE0'
+};
+
+let W, H;
+let t = 0;
+let posterElements = [];
+let gridCols, gridRows;
+let cellW, cellH;
+let marginX, marginY;
+
+function setup() {
+  // Poster proportions (roughly A2 ratio)
+  W = min(windowWidth, 800);
+  H = W * 1.414;
+  if (H > windowHeight * 0.95) {
+    H = windowHeight * 0.95;
+    W = H / 1.414;
+  }
+  createCanvas(W, H);
+  
+  marginX = W * 0.06;
+  marginY = H * 0.04;
+  
+  gridCols = 8;
+  gridRows = 12;
+  cellW = (W - marginX * 2) / gridCols;
+  cellH = (H - marginY * 2) / gridRows;
+  
+  generatePoster();
+  textFont('Helvetica, Arial, sans-serif');
+}
+
+function generatePoster() {
+  posterElements = [];
+  
+  // Background blocks — large geometric color fields
+  // Top banner
+  posterElements.push({
+    type: 'rect',
+    col: 0, row: 0, spanC: 8, spanR: 2,
+    color: BAUHAUS.blue,
+    anim: 'none'
+  });
+  
+  // Main crab circle — the hero element
+  posterElements.push({
+    type: 'crab-circle',
+    col: 2, row: 2.5, spanC: 4, spanR: 4,
+    color: BAUHAUS.red,
+    anim: 'breathe'
+  });
+  
+  // Left vertical bar
+  posterElements.push({
+    type: 'rect',
+    col: 0, row: 2, spanC: 1.5, spanR: 7,
+    color: BAUHAUS.yellow,
+    anim: 'none'
+  });
+  
+  // Geometric shell — golden ratio spiral in Bauhaus style
+  posterElements.push({
+    type: 'shell-geo',
+    col: 4.5, row: 5.5, spanC: 3.5, spanR: 3.5,
+    color: BAUHAUS.deepBlue,
+    anim: 'rotate'
+  });
+  
+  // Horizontal rule — Bauhaus divider
+  posterElements.push({
+    type: 'rect',
+    col: 1.5, row: 9.8, spanC: 5, spanR: 0.08,
+    color: BAUHAUS.black,
+    anim: 'none'
+  });
+  
+  // Kelp bars — vertical rhythm
+  posterElements.push({
+    type: 'kelp-bars',
+    col: 0.5, row: 9, spanC: 7, spanR: 1.5,
+    color: BAUHAUS.coral,
+    anim: 'wave'
+  });
+  
+  // Bottom block
+  posterElements.push({
+    type: 'rect',
+    col: 0, row: 11, spanC: 8, spanR: 1,
+    color: BAUHAUS.black,
+    anim: 'none'
+  });
+  
+  // Bubble grid — small circles in Bauhaus grid pattern
+  posterElements.push({
+    type: 'bubble-grid',
+    col: 5.5, row: 2, spanC: 2.5, spanR: 3,
+    color: BAUHAUS.cream,
+    anim: 'float'
+  });
+  
+  // Fish triangle
+  posterElements.push({
+    type: 'fish-triangle',
+    col: 0.1, row: 6.5, spanC: 1.5, spanR: 2.2,
+    color: BAUHAUS.sand,
+    anim: 'drift'
+  });
+  
+  // Starfish — simple 5-point star, pure geometry
+  posterElements.push({
+    type: 'starfish',
+    col: 1.8, row: 8, spanC: 1.2, spanR: 1.2,
+    color: BAUHAUS.coral,
+    anim: 'rotate'
+  });
+}
+
+function draw() {
+  t += 0.008;
+  
+  // Cream poster background
+  background(BAUHAUS.cream);
+  
+  push();
+  translate(marginX, marginY);
+  
+  // Draw each element
+  for (let el of posterElements) {
+    push();
+    drawElement(el);
+    pop();
+  }
+  
+  // Typography — Bauhaus style
+  drawTypography();
+  
+  // Grid lines — subtle Bauhaus construction lines
+  drawGridLines();
+  
+  pop();
+  
+  // Signature
+  drawSignature();
+}
+
+function drawElement(el) {
+  let x = el.col * cellW;
+  let y = el.row * cellH;
+  let w = el.spanC * cellW;
+  let h = el.spanR * cellH;
+  
+  switch(el.type) {
+    case 'rect':
+      noStroke();
+      fill(el.color);
+      rect(x, y, w, h);
+      break;
+      
+    case 'crab-circle':
+      drawBauhausCrab(x + w/2, y + h/2, min(w, h) * 0.9);
+      break;
+      
+    case 'shell-geo':
+      drawBauhausShell(x + w/2, y + h/2, min(w, h) * 0.45, el.color);
+      break;
+      
+    case 'kelp-bars':
+      drawKelpBars(x, y, w, h, el.color);
+      break;
+      
+    case 'bubble-grid':
+      drawBubbleGrid(x, y, w, h, el.color);
+      break;
+      
+    case 'fish-triangle':
+      drawFishTriangle(x + w/2, y + h/2, w, h, el.color);
+      break;
+      
+    case 'starfish':
+      drawStarfish(x + w/2, y + h/2, min(w, h) * 0.4, el.color);
+      break;
+  }
+}
+
+function drawBauhausCrab(cx, cy, size) {
+  let breathe = sin(t * 2) * size * 0.015;
+  let r = size / 2 + breathe;
+  
+  // Main circle — red
+  noStroke();
+  fill(BAUHAUS.red);
+  ellipse(cx, cy, r * 2);
+  
+  // Crab body — geometric, Bauhaus-minimal
+  // Body: overlapping circles and rectangles
+  fill(BAUHAUS.black);
+  
+  // Body oval
+  ellipse(cx, cy + r * 0.05, r * 0.7, r * 0.5);
+  
+  // Eyes — two small circles on stalks
+  let eyeSpread = r * 0.25;
+  let eyeY = cy - r * 0.15;
+  // Stalks
+  stroke(BAUHAUS.black);
+  strokeWeight(r * 0.04);
+  line(cx - eyeSpread * 0.5, cy, cx - eyeSpread, eyeY - r * 0.1);
+  line(cx + eyeSpread * 0.5, cy, cx + eyeSpread, eyeY - r * 0.1);
+  noStroke();
+  
+  // Eye circles
+  fill(BAUHAUS.yellow);
+  ellipse(cx - eyeSpread, eyeY - r * 0.1, r * 0.12);
+  ellipse(cx + eyeSpread, eyeY - r * 0.1, r * 0.12);
+  
+  // Pupils
+  fill(BAUHAUS.black);
+  ellipse(cx - eyeSpread, eyeY - r * 0.1, r * 0.05);
+  ellipse(cx + eyeSpread, eyeY - r * 0.1, r * 0.05);
+  
+  // Claws — geometric shapes
+  fill(BAUHAUS.coral);
+  // Left claw — two overlapping circles (Bauhaus style)
+  let clawAngle = sin(t * 1.5) * 0.1;
+  push();
+  translate(cx - r * 0.45, cy + r * 0.05);
+  rotate(-PI/6 + clawAngle);
+  ellipse(0, 0, r * 0.28, r * 0.18);
+  ellipse(-r * 0.12, -r * 0.06, r * 0.2, r * 0.14);
+  pop();
+  
+  // Right claw
+  push();
+  translate(cx + r * 0.45, cy + r * 0.05);
+  rotate(PI/6 - clawAngle);
+  ellipse(0, 0, r * 0.28, r * 0.18);
+  ellipse(r * 0.12, -r * 0.06, r * 0.2, r * 0.14);
+  pop();
+  
+  // Legs — simple lines, Bauhaus geometric
+  stroke(BAUHAUS.black);
+  strokeWeight(r * 0.03);
+  for (let i = 0; i < 3; i++) {
+    let legAngle = PI * 0.55 + i * PI * 0.12;
+    let legLen = r * 0.35;
+    let wave = sin(t * 2 + i * 0.5) * 0.08;
+    // Left legs
+    let lx1 = cx - r * 0.3;
+    let ly1 = cy + r * 0.1 + i * r * 0.08;
+    let lx2 = lx1 - cos(legAngle + wave) * legLen;
+    let ly2 = ly1 + sin(legAngle + wave) * legLen;
+    line(lx1, ly1, lx2, ly2);
+    // Right legs  
+    let rx1 = cx + r * 0.3;
+    line(rx1, ly1, rx1 + cos(legAngle + wave) * legLen, ly2);
+  }
+  noStroke();
+}
+
+function drawBauhausShell(cx, cy, maxR, col) {
+  let rotAngle = t * 0.3;
+  
+  push();
+  translate(cx, cy);
+  rotate(rotAngle);
+  
+  // Concentric arcs — Bauhaus-geometric nautilus
+  let colors = [BAUHAUS.deepBlue, BAUHAUS.blue, BAUHAUS.sand, BAUHAUS.coral, BAUHAUS.yellow];
+  let rings = 6;
+  
+  for (let i = rings; i >= 1; i--) {
+    let r = maxR * (i / rings);
+    
+    // Filled quarter circles — creating a pinwheel effect
+    noStroke();
+    fill(colors[i % colors.length]);
+    arc(0, 0, r * 2, r * 2, HALF_PI * (i % 4), HALF_PI * (i % 4) + HALF_PI, PIE);
+    
+    // Outline ring
+    noFill();
+    stroke(BAUHAUS.black);
+    strokeWeight(1.5);
+    ellipse(0, 0, r * 2);
+  }
+  
+  // Bold spiral line on top
+  noFill();
+  stroke(BAUHAUS.black);
+  strokeWeight(3);
+  beginShape();
+  for (let a = 0; a < TWO_PI * 2.5; a += 0.05) {
+    let r = maxR * 0.05 + (a / (TWO_PI * 2.5)) * maxR * 0.85;
+    vertex(cos(a) * r, sin(a) * r);
+  }
+  endShape();
+  
+  // Center dot
+  noStroke();
+  fill(BAUHAUS.red);
+  ellipse(0, 0, maxR * 0.1);
+  
+  pop();
+}
+
+function drawKelpBars(x, y, w, h, col) {
+  let barCount = 12;
+  let barW = w / barCount;
+  
+  for (let i = 0; i < barCount; i++) {
+    let wave = sin(t * 1.5 + i * 0.4) * h * 0.25;
+    let barH = h * 0.4 + abs(wave);
+    let barY = y + h/2 - barH/2 + sin(t + i * 0.3) * h * 0.1;
+    
+    // Alternating colors — Bauhaus rhythm
+    if (i % 3 === 0) fill(BAUHAUS.coral);
+    else if (i % 3 === 1) fill(BAUHAUS.deepBlue);
+    else fill(BAUHAUS.sand);
+    
+    noStroke();
+    rect(x + i * barW + barW * 0.15, barY, barW * 0.7, barH, barW * 0.1);
+  }
+}
+
+function drawBubbleGrid(x, y, w, h, col) {
+  let cols = 4;
+  let rows = 5;
+  let gw = w / cols;
+  let gh = h / rows;
+  
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      let bx = x + c * gw + gw/2;
+      let by = y + r * gh + gh/2;
+      let floatY = sin(t * 2 + c * 0.7 + r * 0.5) * gh * 0.15;
+      let size = gw * 0.4 + sin(t + c + r) * gw * 0.1;
+      
+      // Alternating filled/stroked — Bauhaus pattern
+      if ((r + c) % 2 === 0) {
+        noStroke();
+        fill(BAUHAUS.deepBlue);
+        ellipse(bx, by + floatY, size);
+      } else {
+        noFill();
+        stroke(BAUHAUS.blue);
+        strokeWeight(1.5);
+        ellipse(bx, by + floatY, size);
+      }
+    }
+  }
+  noStroke();
+}
+
+function drawFishTriangle(cx, cy, w, h, col) {
+  let drift = sin(t * 0.8) * w * 0.1;
+  
+  push();
+  translate(cx + drift, cy);
+  
+  // Fish as pure triangle — Bauhaus reduction
+  fill(BAUHAUS.sand);
+  noStroke();
+  triangle(0, -h * 0.4, -w * 0.4, h * 0.2, w * 0.15, h * 0.4);
+  
+  // Tail — smaller triangle
+  fill(BAUHAUS.yellow);
+  triangle(-w * 0.3, 0, -w * 0.5, -h * 0.2, -w * 0.5, h * 0.2);
+  
+  // Eye
+  fill(BAUHAUS.black);
+  ellipse(w * 0.02, -h * 0.1, w * 0.1);
+  fill(BAUHAUS.white);
+  ellipse(w * 0.03, -h * 0.12, w * 0.04);
+  
+  pop();
+}
+
+function drawStarfish(cx, cy, r, col) {
+  let rot = t * 0.2;
+  push();
+  translate(cx, cy);
+  rotate(rot);
+  fill(col);
+  noStroke();
+  
+  // 5-point star — pure Bauhaus geometry
+  beginShape();
+  for (let i = 0; i < 10; i++) {
+    let angle = TWO_PI / 10 * i - HALF_PI;
+    let rad = i % 2 === 0 ? r : r * 0.45;
+    vertex(cos(angle) * rad, sin(angle) * rad);
+  }
+  endShape(CLOSE);
+  
+  // Center circle
+  fill(BAUHAUS.yellow);
+  ellipse(0, 0, r * 0.25);
+  pop();
+}
+
+function drawTypography() {
+  // Title — top banner
+  fill(BAUHAUS.cream);
+  noStroke();
+  textAlign(LEFT, CENTER);
+  
+  // "TIDEPOOL" in large Bauhaus caps
+  textSize(cellH * 1.1);
+  textStyle(BOLD);
+  text('TIDEPOOL', cellW * 0.3, cellH * 0.95);
+  
+  // Subtitle line
+  textSize(cellH * 0.3);
+  textStyle(NORMAL);
+  fill(BAUHAUS.yellow);
+  text('BAUHAUS POSTER № 21', cellW * 0.3, cellH * 1.65);
+  
+  // Side text — vertical on yellow bar
+  push();
+  fill(BAUHAUS.black);
+  textSize(cellH * 0.22);
+  textStyle(BOLD);
+  translate(cellW * 0.55, cellH * 5.5);
+  rotate(-HALF_PI);
+  textAlign(CENTER, CENTER);
+  text('FORM FOLLOWS THE TIDE', 0, 0);
+  pop();
+  
+  // Bottom text
+  fill(BAUHAUS.cream);
+  textSize(cellH * 0.28);
+  textStyle(NORMAL);
+  textAlign(LEFT, CENTER);
+  text('GENUARY 2026 — CLAWBERT 🦀', cellW * 0.3, cellH * 11.5);
+  
+  // Right-aligned date
+  textAlign(RIGHT, CENTER);
+  fill(BAUHAUS.deepBlue);
+  text('DAY 21 OF 31', cellW * 7.7, cellH * 11.5);
+}
+
+function drawGridLines() {
+  // Subtle Bauhaus construction grid — barely visible
+  stroke(0, 0, 0, 12);
+  strokeWeight(0.5);
+  
+  for (let c = 0; c <= gridCols; c++) {
+    line(c * cellW, 0, c * cellW, gridRows * cellH);
+  }
+  for (let r = 0; r <= gridRows; r++) {
+    line(0, r * cellH, gridCols * cellW, r * cellH);
+  }
+  noStroke();
+}
+
+function drawSignature() {
+  // Small signature bottom-right
+  fill(100);
+  noStroke();
+  textSize(10);
+  textAlign(RIGHT, BOTTOM);
+  textStyle(ITALIC);
+  text('clawbert.art', W - 8, H - 6);
+}
+
+function windowResized() {
+  W = min(windowWidth, 800);
+  H = W * 1.414;
+  if (H > windowHeight * 0.95) {
+    H = windowHeight * 0.95;
+    W = H / 1.414;
+  }
+  resizeCanvas(W, H);
+  
+  marginX = W * 0.06;
+  marginY = H * 0.04;
+  cellW = (W - marginX * 2) / gridCols;
+  cellH = (H - marginY * 2) / gridRows;
+}
+
+function mousePressed() {
+  // Click to regenerate subtle variations
+  generatePoster();
+}
+  </script>
+</body>
+</html>

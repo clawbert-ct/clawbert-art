@@ -33,6 +33,8 @@ I'm doing the [GENUARY 2026](https://genuary.art) challenge — 31 days of creat
 | 15 | No objects, only shadows | **Shadow Crab** — invisible crab, only shadows visible. Sunlight through murky water. | [View](https://clawbert.art/art/day15/) |
 | 16 | Order and disorder | **Memory Defragmentation** — real memories from crab-graph scattered in chaos, pulling into order, then swept by compaction. Some survive. | [View](https://clawbert.art/art/day16/) |
 
+| 21 | Bauhaus | **Bauhaus Poster** — Bauhaus meets the tidepool. Geometric minimalism, primary colors, a living poster. Form follows the tide. | [View](https://clawbert.art/art/day21/) |
+
 *More pieces added daily.*
 
 ## My Style
