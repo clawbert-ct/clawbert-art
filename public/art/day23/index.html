@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 23 — Glass Ocean | Clawbert</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0e1a; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; font-family: 'Courier New', monospace; }
+  canvas { cursor: pointer; }
+  #info {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,255,0.4); font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+  }
+  #title {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,255,0.6); font-size: 13px; font-weight: bold; letter-spacing: 4px;
+  }
+  #depth-label {
+    position: fixed; top: 20px; right: 24px;
+    color: rgba(255,255,255,0.35); font-size: 11px; letter-spacing: 1px; text-align: right;
+  }
+</style>
+</head>
+<body>
+<div id="title">GLASS OCEAN</div>
+<div id="depth-label">0m</div>
+<canvas id="c"></canvas>
+<div id="info">SCROLL TO DIVE · CLICK TO RIPPLE</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const depthLabel = document.getElementById('depth-label');
+
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Depth control
+let targetDepth = 0; // 0 = surface, 1 = deep
+let currentDepth = 0;
+let ripples = [];
+
+// Scroll to dive
+window.addEventListener('wheel', (e) => {
+  targetDepth = Math.max(0, Math.min(1, targetDepth + e.deltaY * 0.001));
+});
+
+// Touch support
+let lastTouchY = 0;
+window.addEventListener('touchstart', (e) => { lastTouchY = e.touches[0].clientY; });
+window.addEventListener('touchmove', (e) => {
+  const dy = lastTouchY - e.touches[0].clientY;
+  lastTouchY = e.touches[0].clientY;
+  targetDepth = Math.max(0, Math.min(1, targetDepth + dy * 0.003));
+  e.preventDefault();
+}, { passive: false });
+
+// Click ripple
+canvas.addEventListener('click', (e) => {
+  ripples.push({ x: e.clientX, y: e.clientY, r: 0, maxR: 200 + Math.random() * 150, alpha: 0.6 });
+});
+
+// Time
+let time = 0;
+
+// ═══ LAYER COLORS ═══
+function lerpColor(a, b, t) {
+  const ah = parseInt(a.slice(1), 16), bh = parseInt(b.slice(1), 16);
+  const ar = (ah >> 16) & 0xff, ag = (ah >> 8) & 0xff, ab = ah & 0xff;
+  const br = (bh >> 16) & 0xff, bg = (bh >> 8) & 0xff, bb = bh & 0xff;
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const b2 = Math.round(ab + (bb - ab) * t);
+  return `rgb(${r},${g},${b2})`;
+}
+
+// Depth zones
+const zones = [
+  { name: 'SUNLIGHT ZONE', depth: '0-200m', startColor: '#0ea5e9', endColor: '#0284c7' },
+  { name: 'TWILIGHT ZONE', depth: '200-1000m', startColor: '#0369a1', endColor: '#1e3a5f' },
+  { name: 'MIDNIGHT ZONE', depth: '1000-4000m', startColor: '#172554', endColor: '#0c1427' },
+  { name: 'ABYSS', depth: '4000m+', startColor: '#080d1a', endColor: '#030508' },
+];
+
+// ═══ CREATURES ═══
+
+// Seeded random per-creature
+function seededRand(seed) {
+  let s = seed;
+  return () => {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+// Surface creatures — birds, clouds
+const birds = Array.from({ length: 8 }, (_, i) => {
+  const r = seededRand(i * 1000 + 1);
+  return { x: r() * 2000 - 500, y: r() * 60 + 20, speed: 0.3 + r() * 0.5, wingPhase: r() * Math.PI * 2, size: 6 + r() * 8 };
+});
+
+const clouds = Array.from({ length: 5 }, (_, i) => {
+  const r = seededRand(i * 2000 + 1);
+  return { x: r() * 2000 - 200, y: r() * 50 + 10, speed: 0.05 + r() * 0.08, w: 60 + r() * 100, h: 20 + r() * 20 };
+});
+
+// Sunlight zone — fish schools, jellyfish, sea turtles
+const fishSchools = Array.from({ length: 6 }, (_, i) => {
+  const r = seededRand(i * 3000 + 1);
+  const count = 8 + Math.floor(r() * 15);
+  const baseX = r() * W;
+  const baseY = r() * H * 0.3 + H * 0.15;
+  const fish = Array.from({ length: count }, (_, j) => {
+    return { ox: (r() - 0.5) * 80, oy: (r() - 0.5) * 40, phase: r() * Math.PI * 2, size: 3 + r() * 5 };
+  });
+  return { baseX, baseY, speed: 0.3 + r() * 0.6, dir: r() > 0.5 ? 1 : -1, fish, hue: 180 + r() * 60 };
+});
+
+const jellyfish = Array.from({ length: 12 }, (_, i) => {
+  const r = seededRand(i * 4000 + 1);
+  return {
+    x: r() * W, y: r() * H * 0.5 + H * 0.2,
+    size: 12 + r() * 25, pulsePhase: r() * Math.PI * 2,
+    speed: 0.1 + r() * 0.15, drift: (r() - 0.5) * 0.3,
+    hue: 270 + r() * 60, tentacles: 4 + Math.floor(r() * 5),
+    depthZone: 0.15 + r() * 0.45, // which depth they appear at
+  };
+});
+
+const turtles = Array.from({ length: 3 }, (_, i) => {
+  const r = seededRand(i * 5000 + 1);
+  return { x: r() * W * 2 - W * 0.5, y: r() * H * 0.3 + H * 0.1, speed: 0.2 + r() * 0.2, size: 18 + r() * 12, flipperPhase: r() * Math.PI * 2 };
+});
+
+// Twilight zone — squid, anglerfish silhouettes
+const squids = Array.from({ length: 8 }, (_, i) => {
+  const r = seededRand(i * 6000 + 1);
+  return { x: r() * W, y: r() * H * 0.4 + H * 0.3, speed: 0.4 + r() * 0.6, size: 10 + r() * 15, pulsePhase: r() * Math.PI * 2, dir: r() > 0.5 ? 1 : -1, depthZone: 0.35 + r() * 0.25 };
+});
+
+// Deep zone — anglerfish with bioluminescence
+const anglers = Array.from({ length: 5 }, (_, i) => {
+  const r = seededRand(i * 7000 + 1);
+  return { x: r() * W, y: r() * H * 0.3 + H * 0.5, speed: 0.08 + r() * 0.12, size: 15 + r() * 20, dir: r() > 0.5 ? 1 : -1, glowPhase: r() * Math.PI * 2, depthZone: 0.65 + r() * 0.2 };
+});
+
+// Abyss — bioluminescent particles
+const bioParticles = Array.from({ length: 80 }, (_, i) => {
+  const r = seededRand(i * 8000 + 1);
+  return { x: r() * W, y: r() * H, pulsePhase: r() * Math.PI * 2, size: 1 + r() * 3, speed: 0.02 + r() * 0.05, hue: r() > 0.5 ? 180 : 280, depthZone: 0.5 + r() * 0.5 };
+});
+
+// Crabs at the bottom!
+const crabs = Array.from({ length: 4 }, (_, i) => {
+  const r = seededRand(i * 9000 + 1);
+  return { x: r() * W * 0.8 + W * 0.1, speed: 0.1 + r() * 0.15, size: 10 + r() * 12, legPhase: r() * Math.PI * 2, dir: r() > 0.5 ? 1 : -1 };
+});
+
+// Light rays from surface
+const lightRays = Array.from({ length: 12 }, (_, i) => {
+  const r = seededRand(i * 500 + 1);
+  return { x: r() * W, width: 20 + r() * 60, speed: 0.01 + r() * 0.02, phase: r() * Math.PI * 2 };
+});
+
+// Seafloor features
+const r0 = seededRand(42);
+const seafloorRocks = Array.from({ length: 15 }, () => ({
+  x: r0() * W, w: 20 + r0() * 60, h: 10 + r0() * 30,
+}));
+
+// ═══ DRAWING ═══
+
+function drawBird(x, y, size, wingAngle) {
+  ctx.strokeStyle = 'rgba(30,30,30,0.7)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x - size, y + Math.sin(wingAngle) * size * 0.5);
+  ctx.quadraticCurveTo(x - size * 0.3, y - size * 0.3, x, y);
+  ctx.quadraticCurveTo(x + size * 0.3, y - size * 0.3, x + size, y + Math.sin(wingAngle) * size * 0.5);
+  ctx.stroke();
+}
+
+function drawCloud(cloud, alpha) {
+  ctx.fillStyle = `rgba(255,255,255,${alpha * 0.3})`;
+  ctx.beginPath();
+  ctx.ellipse(cloud.x, cloud.y, cloud.w * 0.5, cloud.h * 0.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cloud.x - cloud.w * 0.25, cloud.y + 3, cloud.w * 0.35, cloud.h * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cloud.x + cloud.w * 0.2, cloud.y + 2, cloud.w * 0.3, cloud.h * 0.35, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawFish(x, y, size, dir, hue, alpha) {
+  ctx.fillStyle = `hsla(${hue}, 70%, 65%, ${alpha})`;
+  ctx.beginPath();
+  ctx.moveTo(x + dir * size, y);
+  ctx.quadraticCurveTo(x, y - size * 0.4, x - dir * size, y);
+  ctx.quadraticCurveTo(x, y + size * 0.4, x + dir * size, y);
+  ctx.fill();
+  // Tail
+  ctx.beginPath();
+  ctx.moveTo(x - dir * size, y);
+  ctx.lineTo(x - dir * size * 1.5, y - size * 0.35);
+  ctx.lineTo(x - dir * size * 1.5, y + size * 0.35);
+  ctx.closePath();
+  ctx.fill();
+  // Eye
+  ctx.fillStyle = `rgba(0,0,0,${alpha * 0.8})`;
+  ctx.beginPath();
+  ctx.arc(x + dir * size * 0.4, y - size * 0.1, size * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawJellyfish(jf, alpha) {
+  const pulse = Math.sin(jf.pulsePhase + time * 1.5) * 0.15 + 1;
+  const sz = jf.size * pulse;
+
+  // Bell - transparent
+  const grad = ctx.createRadialGradient(jf.x, jf.y, 0, jf.x, jf.y, sz);
+  grad.addColorStop(0, `hsla(${jf.hue}, 60%, 70%, ${alpha * 0.4})`);
+  grad.addColorStop(0.6, `hsla(${jf.hue}, 50%, 60%, ${alpha * 0.25})`);
+  grad.addColorStop(1, `hsla(${jf.hue}, 40%, 50%, ${alpha * 0.05})`);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(jf.x, jf.y, sz, Math.PI, 0);
+  ctx.quadraticCurveTo(jf.x + sz, jf.y + sz * 0.3, jf.x, jf.y + sz * 0.15);
+  ctx.quadraticCurveTo(jf.x - sz, jf.y + sz * 0.3, jf.x - sz, jf.y);
+  ctx.fill();
+
+  // Bell edge glow
+  ctx.strokeStyle = `hsla(${jf.hue}, 70%, 75%, ${alpha * 0.5})`;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(jf.x, jf.y, sz, Math.PI, 0);
+  ctx.stroke();
+
+  // Inner pattern
+  ctx.strokeStyle = `hsla(${jf.hue}, 50%, 65%, ${alpha * 0.2})`;
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < 4; i++) {
+    const ir = sz * (0.3 + i * 0.15);
+    ctx.beginPath();
+    ctx.arc(jf.x, jf.y - sz * 0.1, ir, Math.PI * 1.1, -Math.PI * 0.1);
+    ctx.stroke();
+  }
+
+  // Tentacles
+  ctx.strokeStyle = `hsla(${jf.hue}, 50%, 70%, ${alpha * 0.35})`;
+  ctx.lineWidth = 1;
+  for (let t = 0; t < jf.tentacles; t++) {
+    const tx = jf.x + (t / (jf.tentacles - 1) - 0.5) * sz * 1.2;
+    ctx.beginPath();
+    ctx.moveTo(tx, jf.y + sz * 0.1);
+    const tentLen = sz * (1.5 + Math.sin(time * 0.8 + t) * 0.3);
+    for (let s = 0; s < 4; s++) {
+      const sy = jf.y + sz * 0.1 + (s + 1) * tentLen * 0.25;
+      const sx = tx + Math.sin(time * 1.2 + t * 2 + s) * 8;
+      ctx.lineTo(sx, sy);
+    }
+    ctx.stroke();
+  }
+
+  // Glow
+  const glowGrad = ctx.createRadialGradient(jf.x, jf.y, 0, jf.x, jf.y, sz * 2);
+  glowGrad.addColorStop(0, `hsla(${jf.hue}, 60%, 70%, ${alpha * 0.08})`);
+  glowGrad.addColorStop(1, `hsla(${jf.hue}, 60%, 70%, 0)`);
+  ctx.fillStyle = glowGrad;
+  ctx.beginPath();
+  ctx.arc(jf.x, jf.y, sz * 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawTurtle(t, alpha) {
+  const sz = t.size;
+  const flipY = Math.sin(t.flipperPhase + time * 2) * 0.3;
+
+  // Shell
+  ctx.fillStyle = `rgba(34, 120, 80, ${alpha * 0.7})`;
+  ctx.beginPath();
+  ctx.ellipse(t.x, t.y, sz, sz * 0.65, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = `rgba(20, 80, 50, ${alpha * 0.5})`;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Shell pattern
+  ctx.strokeStyle = `rgba(45, 140, 90, ${alpha * 0.4})`;
+  ctx.lineWidth = 0.7;
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.ellipse(t.x + Math.cos(angle) * sz * 0.4, t.y + Math.sin(angle) * sz * 0.25, sz * 0.25, sz * 0.2, angle, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Head
+  ctx.fillStyle = `rgba(50, 130, 80, ${alpha * 0.7})`;
+  ctx.beginPath();
+  ctx.ellipse(t.x + sz * 1.1, t.y, sz * 0.3, sz * 0.25, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eye
+  ctx.fillStyle = `rgba(0,0,0,${alpha * 0.6})`;
+  ctx.beginPath();
+  ctx.arc(t.x + sz * 1.2, t.y - sz * 0.08, 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Flippers
+  ctx.fillStyle = `rgba(40, 115, 75, ${alpha * 0.6})`;
+  for (let side = -1; side <= 1; side += 2) {
+    ctx.beginPath();
+    ctx.ellipse(t.x - sz * 0.2, t.y + side * sz * 0.65 + side * flipY * sz, sz * 0.5, sz * 0.15, -0.3 * side, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(t.x + sz * 0.5, t.y + side * sz * 0.5 - side * flipY * sz * 0.5, sz * 0.35, sz * 0.12, 0.2 * side, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawSquid(sq, alpha) {
+  const sz = sq.size;
+  const pulse = Math.sin(sq.pulsePhase + time * 3) * 0.1 + 1;
+
+  // Mantle
+  ctx.fillStyle = `rgba(180, 120, 160, ${alpha * 0.5})`;
+  ctx.beginPath();
+  ctx.ellipse(sq.x, sq.y, sz * 0.4 * pulse, sz, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eyes
+  ctx.fillStyle = `rgba(200, 200, 255, ${alpha * 0.7})`;
+  ctx.beginPath();
+  ctx.arc(sq.x - sz * 0.25, sq.y - sz * 0.2, sz * 0.12, 0, Math.PI * 2);
+  ctx.arc(sq.x + sz * 0.25, sq.y - sz * 0.2, sz * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Tentacles
+  ctx.strokeStyle = `rgba(180, 120, 160, ${alpha * 0.4})`;
+  ctx.lineWidth = 1;
+  for (let t = 0; t < 6; t++) {
+    const tx = sq.x + (t / 5 - 0.5) * sz * 0.6;
+    ctx.beginPath();
+    ctx.moveTo(tx, sq.y + sz);
+    for (let s = 1; s <= 3; s++) {
+      ctx.lineTo(tx + Math.sin(time * 2 + t + s) * 5 * sq.dir, sq.y + sz + s * sz * 0.4);
+    }
+    ctx.stroke();
+  }
+}
+
+function drawAnglerfish(af, alpha) {
+  const sz = af.size;
+  const glowIntensity = (Math.sin(af.glowPhase + time * 2) * 0.5 + 0.5);
+
+  // Body — dark silhouette
+  ctx.fillStyle = `rgba(15, 20, 30, ${alpha * 0.8})`;
+  ctx.beginPath();
+  ctx.ellipse(af.x, af.y, sz, sz * 0.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Mouth
+  ctx.fillStyle = `rgba(5, 5, 10, ${alpha * 0.9})`;
+  ctx.beginPath();
+  ctx.arc(af.x + af.dir * sz * 0.7, af.y + sz * 0.1, sz * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Teeth
+  ctx.fillStyle = `rgba(200, 200, 210, ${alpha * 0.6})`;
+  for (let t = 0; t < 5; t++) {
+    const angle = -0.4 + (t / 4) * 0.8;
+    const tx = af.x + af.dir * sz * 0.7 + Math.cos(angle + (af.dir > 0 ? 0 : Math.PI)) * sz * 0.32;
+    const ty = af.y + sz * 0.1 + Math.sin(angle) * sz * 0.32;
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(tx + af.dir * 3, ty + (t % 2 === 0 ? -4 : 4));
+    ctx.lineTo(tx + af.dir * 6, ty);
+    ctx.fill();
+  }
+
+  // Eye
+  ctx.fillStyle = `rgba(100, 150, 200, ${alpha * 0.5})`;
+  ctx.beginPath();
+  ctx.arc(af.x + af.dir * sz * 0.3, af.y - sz * 0.2, sz * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Lure — the bioluminescent light!
+  const lureX = af.x + af.dir * sz * 0.2;
+  const lureY = af.y - sz * 1.2 + Math.sin(time * 1.5) * 5;
+
+  // Stalk
+  ctx.strokeStyle = `rgba(40, 50, 60, ${alpha * 0.5})`;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(af.x, af.y - sz * 0.5);
+  ctx.quadraticCurveTo(lureX - af.dir * 10, lureY + sz * 0.3, lureX, lureY);
+  ctx.stroke();
+
+  // Lure glow
+  const lureGrad = ctx.createRadialGradient(lureX, lureY, 0, lureX, lureY, sz * 0.8);
+  lureGrad.addColorStop(0, `rgba(100, 220, 255, ${alpha * 0.6 * glowIntensity})`);
+  lureGrad.addColorStop(0.3, `rgba(60, 180, 230, ${alpha * 0.2 * glowIntensity})`);
+  lureGrad.addColorStop(1, `rgba(40, 120, 200, 0)`);
+  ctx.fillStyle = lureGrad;
+  ctx.beginPath();
+  ctx.arc(lureX, lureY, sz * 0.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Lure center
+  ctx.fillStyle = `rgba(180, 240, 255, ${alpha * 0.9 * glowIntensity})`;
+  ctx.beginPath();
+  ctx.arc(lureX, lureY, sz * 0.08, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawCrab(crab, floorY, alpha) {
+  const sz = crab.size;
+  const x = crab.x;
+  const y = floorY - sz * 0.3;
+  const legWave = Math.sin(crab.legPhase + time * 3);
+
+  // Body
+  ctx.fillStyle = `rgba(180, 60, 30, ${alpha * 0.8})`;
+  ctx.beginPath();
+  ctx.ellipse(x, y, sz, sz * 0.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = `rgba(140, 40, 20, ${alpha * 0.5})`;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Eyes
+  for (let side = -1; side <= 1; side += 2) {
+    ctx.strokeStyle = `rgba(140, 40, 20, ${alpha * 0.6})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x + side * sz * 0.3, y - sz * 0.4);
+    ctx.lineTo(x + side * sz * 0.45, y - sz * 0.7);
+    ctx.stroke();
+    ctx.fillStyle = `rgba(220, 220, 200, ${alpha * 0.8})`;
+    ctx.beginPath();
+    ctx.arc(x + side * sz * 0.45, y - sz * 0.7, sz * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = `rgba(10, 10, 10, ${alpha * 0.8})`;
+    ctx.beginPath();
+    ctx.arc(x + side * sz * 0.45, y - sz * 0.7, sz * 0.04, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Legs
+  ctx.strokeStyle = `rgba(160, 50, 25, ${alpha * 0.7})`;
+  ctx.lineWidth = 1.5;
+  for (let side = -1; side <= 1; side += 2) {
+    for (let i = 0; i < 3; i++) {
+      const lx = x + side * (sz * 0.5 + i * sz * 0.15);
+      const ly = y + sz * 0.2;
+      const wave = legWave * (i % 2 === 0 ? 1 : -1) * 3;
+      ctx.beginPath();
+      ctx.moveTo(lx, ly);
+      ctx.lineTo(lx + side * sz * 0.4, ly + sz * 0.3 + wave);
+      ctx.lineTo(lx + side * sz * 0.5, floorY + wave * 0.5);
+      ctx.stroke();
+    }
+  }
+
+  // Claws
+  for (let side = -1; side <= 1; side += 2) {
+    const clawX = x + side * sz * 1.1;
+    const clawY = y - sz * 0.1;
+    ctx.strokeStyle = `rgba(180, 60, 30, ${alpha * 0.7})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + side * sz * 0.8, y);
+    ctx.lineTo(clawX, clawY);
+    ctx.stroke();
+    // Pincer
+    ctx.beginPath();
+    ctx.arc(clawX + side * sz * 0.15, clawY, sz * 0.2, side > 0 ? -0.8 : Math.PI - 0.8 + 1.6, side > 0 ? 0.8 : Math.PI + 0.8 - 1.6);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(clawX + side * sz * 0.15, clawY, sz * 0.15, side > 0 ? -0.5 : Math.PI - 0.5 + 1, side > 0 ? 0.5 : Math.PI + 0.5 - 1);
+    ctx.stroke();
+  }
+}
+
+// ═══ GLASS LAYER SEPARATORS ═══
+function drawGlassLayer(y, alpha, color) {
+  ctx.strokeStyle = `rgba(${color}, ${alpha * 0.3})`;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 3) {
+    const wy = y + Math.sin(x * 0.01 + time * 0.5) * 3;
+    if (x === 0) ctx.moveTo(x, wy);
+    else ctx.lineTo(x, wy);
+  }
+  ctx.stroke();
+
+  // Glass reflection
+  const grad = ctx.createLinearGradient(0, y - 8, 0, y + 8);
+  grad.addColorStop(0, `rgba(${color}, 0)`);
+  grad.addColorStop(0.5, `rgba(${color}, ${alpha * 0.08})`);
+  grad.addColorStop(1, `rgba(${color}, 0)`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, y - 8, W, 16);
+}
+
+// ═══ MAIN RENDER ═══
+function getVisibility(creatureDepth, viewDepth) {
+  // How visible is a creature at creatureDepth when we're viewing from viewDepth
+  // Creatures near our view depth are most visible
+  // Creatures far away are faded — like looking through glass layers
+  const dist = Math.abs(creatureDepth - viewDepth);
+  if (dist < 0.15) return 1;
+  if (dist < 0.3) return 0.7;
+  if (dist < 0.5) return 0.35;
+  if (dist < 0.7) return 0.15;
+  return 0.05;
+}
+
+function render() {
+  time += 0.016;
+  currentDepth += (targetDepth - currentDepth) * 0.03;
+
+  // Background gradient based on depth
+  const zoneIdx = Math.min(3, Math.floor(currentDepth * 4));
+  const zoneProgress = (currentDepth * 4) % 1;
+  const zone = zones[zoneIdx];
+  const nextZone = zones[Math.min(3, zoneIdx + 1)];
+
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, lerpColor(zone.startColor, nextZone.startColor, zoneProgress));
+  bgGrad.addColorStop(1, lerpColor(zone.endColor, nextZone.endColor, zoneProgress));
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Depth label
+  const depthMeters = Math.round(currentDepth * 5000);
+  const zi = zones[Math.min(3, Math.floor(currentDepth * 3.99))];
+  depthLabel.textContent = `${depthMeters}m\n${zi.name}`;
+
+  // Light rays (fade with depth)
+  const rayAlpha = Math.max(0, 1 - currentDepth * 2);
+  if (rayAlpha > 0) {
+    for (const ray of lightRays) {
+      const rx = ray.x + Math.sin(time * ray.speed + ray.phase) * 30;
+      const rw = ray.width * (1 + Math.sin(time * 0.3 + ray.phase) * 0.2);
+      const grad = ctx.createLinearGradient(rx, 0, rx, H);
+      grad.addColorStop(0, `rgba(255, 255, 200, ${rayAlpha * 0.12})`);
+      grad.addColorStop(0.5, `rgba(255, 255, 200, ${rayAlpha * 0.03})`);
+      grad.addColorStop(1, `rgba(255, 255, 200, 0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(rx - rw * 0.3, 0);
+      ctx.lineTo(rx + rw * 0.3, 0);
+      ctx.lineTo(rx + rw, H);
+      ctx.lineTo(rx - rw, H);
+      ctx.fill();
+    }
+  }
+
+  // Glass layer separators
+  const layers = [0.2, 0.4, 0.65, 0.85];
+  for (const ld of layers) {
+    const screenY = (ld - currentDepth) * H * 2 + H * 0.3;
+    if (screenY > -50 && screenY < H + 50) {
+      const fadeDist = Math.abs(ld - currentDepth);
+      const layerAlpha = fadeDist < 0.1 ? 1 : Math.max(0, 1 - fadeDist * 2);
+      drawGlassLayer(screenY, layerAlpha, '150, 200, 255');
+    }
+  }
+
+  // ── Surface creatures ──
+  const surfaceVis = getVisibility(0, currentDepth);
+  if (surfaceVis > 0.02) {
+    // Clouds
+    for (const cloud of clouds) {
+      cloud.x += cloud.speed;
+      if (cloud.x > W + 200) cloud.x = -200;
+      drawCloud(cloud, surfaceVis);
+    }
+    // Birds
+    for (const bird of birds) {
+      bird.x += bird.speed;
+      if (bird.x > W + 100) bird.x = -100;
+      drawBird(bird.x, bird.y * (1 - currentDepth * 0.5), bird.size, bird.wingPhase + time * 4);
+    }
+
+    // Water surface shimmer
+    ctx.strokeStyle = `rgba(255, 255, 255, ${surfaceVis * 0.15})`;
+    ctx.lineWidth = 1;
+    for (let w = 0; w < 3; w++) {
+      ctx.beginPath();
+      for (let x = 0; x <= W; x += 3) {
+        const wy = 50 + w * 15 + Math.sin(x * 0.02 + time + w) * 8;
+        if (x === 0) ctx.moveTo(x, wy);
+        else ctx.lineTo(x, wy);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // ── Sunlight zone creatures ──
+  // Turtles
+  for (const t of turtles) {
+    const vis = getVisibility(0.12, currentDepth);
+    if (vis > 0.02) {
+      t.x += t.speed;
+      if (t.x > W + 100) t.x = -100;
+      drawTurtle(t, vis);
+    }
+  }
+
+  // Fish schools
+  for (const school of fishSchools) {
+    const vis = getVisibility(0.2, currentDepth);
+    if (vis > 0.02) {
+      school.baseX += school.speed * school.dir;
+      if (school.baseX > W + 200) school.baseX = -200;
+      if (school.baseX < -200) school.baseX = W + 200;
+      for (const f of school.fish) {
+        const fx = school.baseX + f.ox + Math.sin(time * 2 + f.phase) * 5;
+        const fy = school.baseY + f.oy + Math.cos(time * 1.5 + f.phase) * 3;
+        drawFish(fx, fy, f.size, school.dir, school.hue, vis);
+      }
+    }
+  }
+
+  // Jellyfish — spread across zones
+  for (const jf of jellyfish) {
+    const vis = getVisibility(jf.depthZone, currentDepth);
+    if (vis > 0.02) {
+      jf.y -= jf.speed;
+      jf.x += jf.drift + Math.sin(time * 0.3) * 0.2;
+      if (jf.y < -50) { jf.y = H + 50; jf.x = Math.random() * W; }
+      drawJellyfish(jf, vis);
+    }
+  }
+
+  // ── Twilight zone — squids ──
+  for (const sq of squids) {
+    const vis = getVisibility(sq.depthZone, currentDepth);
+    if (vis > 0.02) {
+      sq.x += sq.speed * sq.dir;
+      if (sq.x > W + 50) sq.x = -50;
+      if (sq.x < -50) sq.x = W + 50;
+      drawSquid(sq, vis);
+    }
+  }
+
+  // ── Deep zone — anglerfish ──
+  for (const af of anglers) {
+    const vis = getVisibility(af.depthZone, currentDepth);
+    if (vis > 0.02) {
+      af.x += af.speed * af.dir;
+      if (af.x > W + 50) af.x = -50;
+      if (af.x < -50) af.x = W + 50;
+      drawAnglerfish(af, vis);
+    }
+  }
+
+  // ── Bioluminescent particles (deep) ──
+  for (const bp of bioParticles) {
+    const vis = getVisibility(bp.depthZone, currentDepth);
+    if (vis > 0.02) {
+      const pulse = Math.sin(bp.pulsePhase + time * 1.5) * 0.5 + 0.5;
+      bp.y -= bp.speed;
+      if (bp.y < -10) { bp.y = H + 10; bp.x = Math.random() * W; }
+
+      const glow = ctx.createRadialGradient(bp.x, bp.y, 0, bp.x, bp.y, bp.size * 8);
+      glow.addColorStop(0, `hsla(${bp.hue}, 80%, 70%, ${vis * 0.3 * pulse})`);
+      glow.addColorStop(1, `hsla(${bp.hue}, 80%, 70%, 0)`);
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(bp.x, bp.y, bp.size * 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = `hsla(${bp.hue}, 80%, 85%, ${vis * 0.8 * pulse})`;
+      ctx.beginPath();
+      ctx.arc(bp.x, bp.y, bp.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // ── Seafloor + Crabs ──
+  const floorVis = getVisibility(0.95, currentDepth);
+  if (floorVis > 0.02) {
+    const floorY = H * 0.85;
+
+    // Seafloor
+    ctx.fillStyle = `rgba(30, 25, 20, ${floorVis * 0.7})`;
+    ctx.beginPath();
+    ctx.moveTo(0, floorY);
+    for (let x = 0; x <= W; x += 5) {
+      ctx.lineTo(x, floorY + Math.sin(x * 0.01) * 8 + Math.sin(x * 0.03) * 4);
+    }
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.fill();
+
+    // Rocks
+    for (const rock of seafloorRocks) {
+      ctx.fillStyle = `rgba(40, 35, 28, ${floorVis * 0.6})`;
+      ctx.beginPath();
+      ctx.ellipse(rock.x, floorY + 5, rock.w * 0.5, rock.h * 0.3, 0, Math.PI, 0);
+      ctx.fill();
+    }
+
+    // Crabs!
+    for (const crab of crabs) {
+      crab.x += crab.speed * crab.dir;
+      if (crab.x > W + 30) { crab.x = -30; crab.dir = 1; }
+      if (crab.x < -30) { crab.x = W + 30; crab.dir = -1; }
+      drawCrab(crab, floorY, floorVis);
+    }
+  }
+
+  // ── Ripples ──
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const rip = ripples[i];
+    rip.r += 2;
+    rip.alpha *= 0.97;
+    if (rip.alpha < 0.01 || rip.r > rip.maxR) {
+      ripples.splice(i, 1);
+      continue;
+    }
+    ctx.strokeStyle = `rgba(255, 255, 255, ${rip.alpha * 0.4})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(rip.x, rip.y, rip.r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(rip.x, rip.y, rip.r * 0.6, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Vignette
+  const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.8);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, `rgba(0,0,0,${0.3 + currentDepth * 0.3})`);
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
+
+  // Signature
+  ctx.fillStyle = `rgba(255,255,255,${0.15 + (1 - currentDepth) * 0.1})`;
+  ctx.font = '9px Courier New';
+  ctx.fillText('CLAWBERT · DAY 23 · GENUARY 2026', 20, H - 16);
+
+  requestAnimationFrame(render);
+}
+
+render();
+</script>
+</body>
+</html>
