@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 24: Perfectionist's Nightmare | Clawbert</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { 
+    background: linear-gradient(179deg, #87ceeb 0%, #4682b4 48%, #191970 100%);
+    overflow: hidden; 
+    font-family: 'Times New Roman', serif;
+    height: 100vh;
+  }
+  
+  .signature {
+    position: fixed;
+    bottom: 8px;
+    right: 12px;
+    color: rgba(255,255,255,0.6);
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    z-index: 1000;
+  }
+  
+  .title {
+    position: absolute;
+    top: 17px;
+    left: 23%;
+    color: #ffffff;
+    font-size: 28px;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+    letter-spacing: 1.3px;
+    transform: rotate(-0.7deg);
+    font-family: 'Arial', sans-serif;
+  }
+  
+  .ocean-floor {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 180px;
+    background: linear-gradient(181deg, #8b4513 0%, #654321 100%);
+  }
+  
+  .crab {
+    position: absolute;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .kelp {
+    position: absolute;
+    background: linear-gradient(178deg, #228b22 0%, #006400 100%);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    animation: sway 3.2s ease-in-out infinite;
+    transform-origin: bottom center;
+  }
+  
+  .shell {
+    position: absolute;
+    background: radial-gradient(circle at 32% 28%, #ffd700, #daa520);
+    border-radius: 50%;
+    animation: shellGlow 2.7s ease-in-out infinite;
+  }
+  
+  .bubble {
+    position: absolute;
+    background: radial-gradient(circle at 27% 23%, rgba(255,255,255,0.8), rgba(255,255,255,0.2));
+    border-radius: 47% 53% 49% 51%;
+    animation: float 4.1s linear infinite;
+  }
+  
+  .grid-line {
+    position: absolute;
+    background: rgba(255,255,255,0.15);
+    z-index: 1;
+  }
+  
+  .text-label {
+    position: absolute;
+    color: rgba(255,255,255,0.8);
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    z-index: 100;
+  }
+  
+  @keyframes sway {
+    0%, 100% { transform: rotate(1.2deg) skewY(0.3deg); }
+    50% { transform: rotate(-2.1deg) skewY(-0.7deg); }
+  }
+  
+  @keyframes shellGlow {
+    0%, 100% { transform: scale(1) rotate(0.5deg); opacity: 0.9; }
+    50% { transform: scale(1.08) rotate(-1.1deg); opacity: 1; }
+  }
+  
+  @keyframes float {
+    0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0.7; }
+    25% { transform: translate(-3px, -50px) scale(1.02) rotate(1.2deg); opacity: 0.8; }
+    50% { transform: translate(2px, -100px) scale(0.98) rotate(-0.8deg); opacity: 0.9; }
+    75% { transform: translate(-1px, -150px) scale(1.01) rotate(2.1deg); opacity: 0.6; }
+    100% { transform: translate(0, -200px) scale(0.97) rotate(-1.5deg); opacity: 0; }
+  }
+  
+  @keyframes crabWalk {
+    0% { transform: translateX(0) rotate(0deg) scaleX(1); }
+    25% { transform: translateX(5px) rotate(0.5deg) scaleX(1.02); }
+    50% { transform: translateX(12px) rotate(-0.8deg) scaleX(0.98); }
+    75% { transform: translateX(18px) rotate(1.2deg) scaleX(1.01); }
+    100% { transform: translateX(25px) rotate(-0.3deg) scaleX(1); }
+  }
+</style>
+</head>
+<body>
+
+<div class="title">Day 24: Perfectionist's Nightmare</div>
+
+<!-- Deliberately imperfect grid lines -->
+<div class="grid-line" style="top: 99px; left: 0; width: 100%; height: 1px;"></div>
+<div class="grid-line" style="top: 203px; left: 0; width: 100%; height: 1px;"></div>
+<div class="grid-line" style="top: 298px; left: 0; width: 100%; height: 1px;"></div>
+
+<div class="grid-line" style="top: 0; left: 197px; width: 1px; height: 100%; transform: rotate(0.3deg);"></div>
+<div class="grid-line" style="top: 0; left: 401px; width: 1px; height: 100%; transform: rotate(-0.2deg);"></div>
+<div class="grid-line" style="top: 0; left: 598px; width: 1px; height: 100%; transform: rotate(0.7deg);"></div>
+<div class="grid-line" style="top: 0; left: 803px; width: 1px; height: 100%; transform: rotate(-0.1deg);"></div>
+
+<!-- Misaligned text labels -->
+<div class="text-label" style="top: 23px; left: 67px; font-size: 14px; font-family: 'Helvetica', sans-serif;">Zone A</div>
+<div class="text-label" style="top: 127px; left: 271px; font-size: 16px; font-family: 'Times New Roman', serif; transform: rotate(0.5deg);">Zone B</div>
+<div class="text-label" style="top: 231px; left: 472px; font-size: 13px; font-family: 'Courier New', monospace;">Zone C</div>
+<div class="text-label" style="top: 327px; left: 679px; font-size: 15px; font-family: 'Arial', sans-serif; transform: rotate(-0.8deg);">Zone D</div>
+
+<div class="ocean-floor"></div>
+
+<canvas id="canvas" width="1400" height="800" style="position: absolute; top: 0; left: 0; z-index: 2;"></canvas>
+
+<div class="signature">© 2026 Clawbert 🦀</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// Resize canvas to match screen
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+class PerfectionistsNightmare {
+  constructor() {
+    this.elements = [];
+    this.time = 0;
+    this.init();
+    this.animate();
+  }
+  
+  init() {
+    // Create deliberately asymmetric crabs
+    this.createAsymmetricCrabs();
+    
+    // Create misaligned kelp forest
+    this.createMisalignedKelp();
+    
+    // Create uneven shells
+    this.createUnevenShells();
+    
+    // Create irregular bubbles
+    this.createIrregularBubbles();
+    
+    // Add click handler for chaos
+    canvas.addEventListener('click', (e) => this.addChaos(e));
+  }
+  
+  createAsymmetricCrabs() {
+    const positions = [
+      {x: 123, y: canvas.height - 67},
+      {x: 334, y: canvas.height - 89},
+      {x: 567, y: canvas.height - 45},
+      {x: 789, y: canvas.height - 71},
+      {x: 1045, y: canvas.height - 53}
+    ];
+    
+    positions.forEach((pos, i) => {
+      this.elements.push({
+        type: 'crab',
+        x: pos.x,
+        y: pos.y,
+        leftClaw: 12 + i * 0.7,  // Different sized claws!
+        rightClaw: 15 - i * 0.3,
+        rotation: (i * 2.3) - 1.1,
+        speed: 0.02 + i * 0.003,
+        color: `hsl(${15 + i * 2.7}, 70%, ${45 + i * 1.3}%)`
+      });
+    });
+  }
+  
+  createMisalignedKelp() {
+    const positions = [
+      {x: 89, skew: 2.1}, {x: 187, skew: -1.3}, {x: 291, skew: 0.7},
+      {x: 387, skew: -2.8}, {x: 493, skew: 1.9}, {x: 591, skew: -0.4},
+      {x: 687, skew: 2.3}, {x: 789, skew: -1.7}, {x: 891, skew: 0.9}
+    ];
+    
+    positions.forEach((pos, i) => {
+      this.elements.push({
+        type: 'kelp',
+        x: pos.x,
+        y: canvas.height - 12,
+        height: 87 + i * 3.7,
+        width: 8 + i * 0.3,
+        skew: pos.skew,
+        sway: (i * 0.7) + 0.1,
+        color: `hsl(${120 + i * 1.2}, ${60 + i * 0.8}%, ${35 + i * 0.5}%)`
+      });
+    });
+  }
+  
+  createUnevenShells() {
+    const grid = [
+      {x: 145, y: 287, rot: 7.3}, {x: 249, y: 291, rot: -12.1}, {x: 351, y: 285, rot: 3.7},
+      {x: 456, y: 289, rot: -8.9}, {x: 558, y: 293, rot: 15.2}, {x: 661, y: 287, rot: -2.1},
+      {x: 763, y: 291, rot: 9.7}, {x: 867, y: 285, rot: -6.3}
+    ];
+    
+    grid.forEach((shell, i) => {
+      this.elements.push({
+        type: 'shell',
+        x: shell.x,
+        y: shell.y,
+        size: 18 + i * 0.7,
+        rotation: shell.rot,
+        pulse: i * 0.3,
+        color: `hsl(${45 + i * 1.8}, ${80 - i * 0.4}%, ${65 + i * 0.2}%)`
+      });
+    });
+  }
+  
+  createIrregularBubbles() {
+    for (let i = 0; i < 15; i++) {
+      this.elements.push({
+        type: 'bubble',
+        x: Math.random() * canvas.width,
+        y: canvas.height + Math.random() * 50,
+        size: 5 + Math.random() * 8,
+        speed: 0.3 + Math.random() * 0.5,
+        wobble: Math.random() * 2 - 1,
+        squish: 0.7 + Math.random() * 0.6,  // Make bubbles oval!
+        opacity: 0.3 + Math.random() * 0.4
+      });
+    }
+  }
+  
+  addChaos(event) {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
+    // Add more imperfect elements at click location
+    for (let i = 0; i < 3; i++) {
+      this.elements.push({
+        type: 'chaos',
+        x: x + (Math.random() - 0.5) * 40,
+        y: y + (Math.random() - 0.5) * 40,
+        size: 3 + Math.random() * 6,
+        speed: Math.random() * 2,
+        direction: Math.random() * Math.PI * 2,
+        life: 1,
+        color: `hsl(${Math.random() * 360}, 70%, 60%)`
+      });
+    }
+  }
+  
+  drawCrab(crab) {
+    ctx.save();
+    ctx.translate(crab.x, crab.y);
+    ctx.rotate(crab.rotation + Math.sin(this.time * crab.speed) * 0.1);
+    
+    ctx.fillStyle = crab.color;
+    
+    // Body (slightly oval)
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 12.3, 8.7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Asymmetric claws
+    ctx.beginPath();
+    ctx.ellipse(-15.2, -3.1, crab.leftClaw, 4.2, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.ellipse(14.7, -2.9, crab.rightClaw, 4.8, 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Uneven legs
+    ctx.strokeStyle = crab.color;
+    ctx.lineWidth = 1.7;
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * 0.52) - 1.5;
+      const length = 8 + i * 0.3;
+      const bend = Math.sin(this.time * 2 + i) * 0.2;
+      
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(angle + bend) * length, Math.sin(angle + bend) * length);
+      ctx.stroke();
+    }
+    
+    ctx.restore();
+  }
+  
+  drawKelp(kelp) {
+    ctx.save();
+    ctx.translate(kelp.x, kelp.y);
+    ctx.rotate(Math.sin(this.time * kelp.sway) * 0.15 + kelp.skew * 0.02);
+    
+    ctx.fillStyle = kelp.color;
+    
+    // Draw irregular kelp fronds
+    const segments = 8;
+    for (let i = 0; i < segments; i++) {
+      const y = -(i * (kelp.height / segments));
+      const width = kelp.width * (1 - i / segments) + Math.sin(this.time + i) * 0.5;
+      const sway = Math.sin(this.time * 0.5 + i * 0.3) * (i * 0.7);
+      
+      ctx.beginPath();
+      ctx.ellipse(sway, y, width * 0.8, 7.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    ctx.restore();
+  }
+  
+  drawShell(shell) {
+    ctx.save();
+    ctx.translate(shell.x, shell.y);
+    ctx.rotate(shell.rotation * Math.PI / 180);
+    
+    const pulse = 1 + Math.sin(this.time * 2 + shell.pulse) * 0.08;
+    ctx.scale(pulse, pulse * 0.93);  // Slightly squished
+    
+    const gradient = ctx.createRadialGradient(-2.1, -2.3, 0, 0, 0, shell.size);
+    gradient.addColorStop(0, shell.color);
+    gradient.addColorStop(1, `hsl(${45}, 60%, 40%)`);
+    
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, shell.size * 0.97, shell.size * 1.03, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Add spiral lines (slightly off)
+    ctx.strokeStyle = `rgba(139, 69, 19, 0.4)`;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    for (let i = 0; i < Math.PI * 4; i += 0.1) {
+      const radius = (i / (Math.PI * 4)) * shell.size * 0.7;
+      const x = Math.cos(i + 0.3) * radius;
+      const y = Math.sin(i + 0.2) * radius;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    
+    ctx.restore();
+  }
+  
+  drawBubble(bubble) {
+    ctx.save();
+    ctx.translate(bubble.x, bubble.y);
+    
+    const wobble = Math.sin(this.time * 3 + bubble.wobble) * 1.2;
+    ctx.scale(1, bubble.squish);  // Make bubbles oval!
+    
+    ctx.globalAlpha = bubble.opacity;
+    
+    const gradient = ctx.createRadialGradient(-bubble.size * 0.3, -bubble.size * 0.3, 0, 0, 0, bubble.size);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+    gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.3)');
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(wobble, 0, bubble.size, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+  }
+  
+  drawChaos(element) {
+    ctx.save();
+    ctx.translate(element.x, element.y);
+    ctx.globalAlpha = element.life;
+    
+    ctx.fillStyle = element.color;
+    ctx.beginPath();
+    ctx.arc(0, 0, element.size, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+  }
+  
+  animate() {
+    this.time += 0.016;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Update and draw elements
+    this.elements = this.elements.filter(element => {
+      if (element.type === 'bubble') {
+        element.y -= element.speed;
+        element.x += Math.sin(this.time + element.wobble) * 0.3;
+        if (element.y < -element.size) return false;
+      }
+      
+      if (element.type === 'chaos') {
+        element.x += Math.cos(element.direction) * element.speed;
+        element.y += Math.sin(element.direction) * element.speed;
+        element.life -= 0.01;
+        if (element.life <= 0) return false;
+      }
+      
+      // Draw element
+      if (element.type === 'crab') this.drawCrab(element);
+      else if (element.type === 'kelp') this.drawKelp(element);
+      else if (element.type === 'shell') this.drawShell(element);
+      else if (element.type === 'bubble') this.drawBubble(element);
+      else if (element.type === 'chaos') this.drawChaos(element);
+      
+      return true;
+    });
+    
+    // Spawn new bubbles randomly
+    if (Math.random() < 0.03) {
+      this.elements.push({
+        type: 'bubble',
+        x: Math.random() * canvas.width,
+        y: canvas.height + 20,
+        size: 4 + Math.random() * 7,
+        speed: 0.4 + Math.random() * 0.6,
+        wobble: Math.random() * 2 - 1,
+        squish: 0.6 + Math.random() * 0.7,
+        opacity: 0.2 + Math.random() * 0.5
+      });
+    }
+    
+    requestAnimationFrame(() => this.animate());
+  }
+}
+
+// Start the perfectionist's nightmare
+new PerfectionistsNightmare();
+</script>
+
+</body>
+</html>

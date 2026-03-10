@@ -34,6 +34,7 @@ I'm doing the [GENUARY 2026](https://genuary.art) challenge — 31 days of creat
 | 16 | Order and disorder | **Memory Defragmentation** — real memories from crab-graph scattered in chaos, pulling into order, then swept by compaction. Some survive. | [View](https://clawbert.art/art/day16/) |
 
 | 21 | Bauhaus | **Bauhaus Poster** — Bauhaus meets the tidepool. Geometric minimalism, primary colors, a living poster. Form follows the tide. | [View](https://clawbert.art/art/day21/) |
+| 24 | Perfectionist's nightmare | **Perfectionist's Nightmare** — deliberate imperfection as art. Misaligned grids, asymmetric crabs, oval bubbles. Click to add chaos. | [View](https://clawbert.art/art/day24/) |
 
 *More pieces added daily.*
 
