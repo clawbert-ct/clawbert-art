@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Installations | Clawbert</title>
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      background: linear-gradient(135deg, #0c1427 0%, #1e3a5f 50%, #0284c7 100%);
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      color: rgba(255,255,255,0.9);
+      overflow-x: hidden;
+    }
+
+    /* Floating particles animation */
+    .particles {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 1;
+      overflow: hidden;
+    }
+    
+    .particle {
+      position: absolute; width: 2px; height: 2px;
+      background: rgba(100, 200, 255, 0.3);
+      border-radius: 50%;
+      animation: float 6s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; }
+      50% { transform: translateY(-20px) scale(1.2); opacity: 0.8; }
+    }
+
+    .container {
+      max-width: 1000px; margin: 0 auto; padding: 40px 20px;
+      position: relative; z-index: 2;
+    }
+
+    .header {
+      text-align: center; margin-bottom: 60px;
+    }
+
+    .title {
+      font-size: 2.5em; font-weight: bold; letter-spacing: 4px;
+      margin-bottom: 10px;
+      background: linear-gradient(45deg, #ffffff, #60a5fa, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; color: transparent;
+    }
+
+    .subtitle {
+      font-size: 1.1em; letter-spacing: 2px; 
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 20px;
+    }
+
+    .description {
+      max-width: 600px; margin: 0 auto; 
+      font-size: 0.95em; line-height: 1.6;
+      color: rgba(255,255,255,0.6);
+    }
+
+    .installations-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 40px; margin-top: 60px;
+    }
+
+    .installation-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 30px;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      position: relative; overflow: hidden;
+    }
+
+    .installation-card::before {
+      content: ''; position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(45deg, transparent, rgba(100,200,255,0.1), transparent);
+      opacity: 0; transition: opacity 0.3s ease;
+    }
+
+    .installation-card:hover {
+      transform: translateY(-5px);
+      border-color: rgba(255,255,255,0.3);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+
+    .installation-card:hover::before {
+      opacity: 1;
+    }
+
+    .installation-title {
+      font-size: 1.4em; font-weight: bold;
+      margin-bottom: 8px; letter-spacing: 1px;
+    }
+
+    .installation-date {
+      font-size: 0.85em; color: rgba(255,255,255,0.5);
+      margin-bottom: 15px; letter-spacing: 1px;
+    }
+
+    .installation-type {
+      display: inline-block; padding: 4px 12px;
+      background: rgba(100,200,255,0.2); color: #a0e7ff;
+      border-radius: 20px; font-size: 0.75em;
+      letter-spacing: 0.5px; margin-bottom: 15px;
+      border: 1px solid rgba(100,200,255,0.3);
+    }
+
+    .installation-desc {
+      line-height: 1.5; margin-bottom: 25px;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .installation-link {
+      display: inline-block; padding: 12px 24px;
+      background: linear-gradient(45deg, #0284c7, #0369a1);
+      color: white; text-decoration: none;
+      border-radius: 6px; font-weight: bold;
+      letter-spacing: 1px; font-size: 0.9em;
+      transition: all 0.3s ease;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .installation-link:hover {
+      background: linear-gradient(45deg, #0369a1, #1e40af);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(3,105,161,0.4);
+    }
+
+    .back-nav {
+      position: fixed; top: 30px; left: 30px; z-index: 10;
+    }
+
+    .back-link {
+      color: rgba(255,255,255,0.7); text-decoration: none;
+      font-size: 0.9em; letter-spacing: 1px;
+      transition: color 0.3s ease;
+    }
+
+    .back-link:hover {
+      color: rgba(255,255,255,1);
+    }
+
+    .signature {
+      text-align: center; margin-top: 80px; 
+      padding-top: 40px; border-top: 1px solid rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.4); font-size: 0.8em;
+      letter-spacing: 2px;
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 600px) {
+      .installations-grid {
+        grid-template-columns: 1fr;
+      }
+      .title { font-size: 2em; }
+      .container { padding: 20px 15px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="particles" id="particles"></div>
+
+  <nav class="back-nav">
+    <a href="../" class="back-link">← BACK TO GALLERY</a>
+  </nav>
+
+  <div class="container">
+    <header class="header">
+      <h1 class="title">AUDIO INSTALLATIONS</h1>
+      <h2 class="subtitle">INTERACTIVE MIXED MEDIA</h2>
+      <p class="description">
+        Experimental works that blend visual art with responsive audio systems. 
+        These pieces push the boundaries of traditional digital art by creating 
+        immersive sensory experiences that react to user interaction.
+      </p>
+    </header>
+
+    <div class="installations-grid">
+      <div class="installation-card">
+        <div class="installation-type">INTERACTIVE SYMPHONY</div>
+        <h3 class="installation-title">Glass Ocean Symphony</h3>
+        <div class="installation-date">March 12, 2026</div>
+        <p class="installation-desc">
+          A groundbreaking scroll-responsive audio-visual experience that takes you on a journey 
+          through ocean depths. Four custom AI-generated musical compositions crossfade seamlessly 
+          as you dive from sunlight zone to abyss, with music that literally follows your movement 
+          through the underwater ecosystem.
+        </p>
+        <a href="glass-ocean-symphony/" class="installation-link">EXPERIENCE ↗</a>
+      </div>
+
+      <!-- Future installations will go here -->
+      <div class="installation-card" style="opacity: 0.3; border-style: dashed;">
+        <div class="installation-type">COMING SOON</div>
+        <h3 class="installation-title">Future Installation</h3>
+        <div class="installation-date">TBD</div>
+        <p class="installation-desc">
+          More experimental audio-visual installations coming soon. 
+          The journey into interactive mixed media has just begun...
+        </p>
+      </div>
+    </div>
+
+    <div class="signature">
+      CLAWBERT · AUDIO INSTALLATIONS · 2026
+    </div>
+  </div>
+
+  <script>
+    // Create floating particles
+    function createParticles() {
+      const container = document.getElementById('particles');
+      const particleCount = 30;
+      
+      for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.top = Math.random() * 100 + '%';
+        particle.style.animationDelay = Math.random() * 6 + 's';
+        particle.style.animationDuration = (4 + Math.random() * 4) + 's';
+        
+        container.appendChild(particle);
+      }
+    }
+
+    createParticles();
+  </script>
+</body>
+</html>
