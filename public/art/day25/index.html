@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Day 25: Organic Geometry | GENUARY 2026</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0a0f0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        canvas {
+            border: 1px solid #2a3f2a;
+            background: radial-gradient(circle at center, #0f1a0f 0%, #050a05 100%);
+        }
+
+        .info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #6b8f6b;
+            font-size: 12px;
+            line-height: 1.4;
+            max-width: 300px;
+            background: rgba(10, 15, 10, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #2a3f2a;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #6b8f6b;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <strong>Day 25: Organic Geometry</strong><br>
+        Where mathematical precision meets natural flow.<br><br>
+        Watch as Fibonacci spirals grow like living vines,<br>
+        Crystal patterns pulse with organic breath,<br>
+        And geometric forms dance with nature's rhythm.
+    </div>
+
+    <div class="controls">
+        Click to plant new growth • Space to reset • R to reverse time
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas size
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Golden ratio and Fibonacci magic
+        const PHI = (1 + Math.sqrt(5)) / 2;
+        const INVERSE_PHI = 1 / PHI;
+        
+        // Living geometry state
+        let time = 0;
+        let growthSites = [];
+        let crystalSeed = { x: canvas.width / 2, y: canvas.height / 2 };
+        let organicStructures = [];
+        
+        // Fibonacci sequence generator
+        function* fibonacci() {
+            let a = 1, b = 1;
+            while (true) {
+                yield a;
+                [a, b] = [b, a + b];
+            }
+        }
+
+        class OrganicGeometry {
+            constructor(x, y, type = 'spiral') {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.age = 0;
+                this.maxAge = 500 + Math.random() * 1000;
+                this.growth = 0;
+                this.fibGen = fibonacci();
+                this.branches = [];
+                this.crystalFaces = [];
+                this.cellDivisions = 0;
+                
+                // Organic parameters with mathematical precision
+                this.spiralTightness = 0.1 + Math.random() * 0.05;
+                this.branchAngle = (Math.PI * 2) / PHI; // Golden angle
+                this.pulseFreq = 0.02 + Math.random() * 0.01;
+                this.geometricComplexity = Math.floor(Math.random() * 8) + 3;
+            }
+
+            update() {
+                this.age++;
+                this.growth = Math.min(this.age / this.maxAge, 1);
+                
+                // Organic breathing motion
+                const breathe = Math.sin(time * this.pulseFreq) * 0.1 + 1;
+                this.currentScale = this.growth * breathe;
+
+                // Generate new growth points at Fibonacci intervals
+                if (this.age % 34 === 0 && this.growth < 0.8) { // 34 is a Fibonacci number
+                    this.generateNewBranch();
+                }
+
+                // Crystal face generation
+                if (this.type === 'crystal' && this.age % 55 === 0) { // 55 is Fibonacci
+                    this.generateCrystalFace();
+                }
+
+                // Cellular division patterns
+                if (this.type === 'cellular' && this.age % 21 === 0) { // 21 is Fibonacci
+                    this.cellDivisions++;
+                }
+            }
+
+            generateNewBranch() {
+                const numBranches = this.branches.length;
+                const angle = numBranches * this.branchAngle;
+                const distance = this.fibGen.next().value * 2;
+                
+                this.branches.push({
+                    angle: angle,
+                    distance: distance,
+                    growth: 0,
+                    birthTime: this.age
+                });
+            }
+
+            generateCrystalFace() {
+                const faceAngle = this.crystalFaces.length * (Math.PI * 2 / this.geometricComplexity);
+                this.crystalFaces.push({
+                    angle: faceAngle,
+                    size: 20 + Math.random() * 40,
+                    growth: 0,
+                    vertices: this.geometricComplexity
+                });
+            }
+
+            drawFibonacciSpiral() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.scale(this.currentScale, this.currentScale);
+
+                // Draw the main spiral
+                ctx.strokeStyle = `hsla(${120 + this.age * 0.1}, 70%, 60%, 0.8)`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+
+                let spiralRadius = 1;
+                const totalRevolutions = this.growth * 4;
+                
+                for (let t = 0; t < totalRevolutions * Math.PI * 2; t += 0.1) {
+                    const spiralScale = Math.pow(PHI, t * this.spiralTightness);
+                    const x = Math.cos(t) * spiralScale * 10;
+                    const y = Math.sin(t) * spiralScale * 10;
+                    
+                    if (t === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.stroke();
+
+                // Draw Fibonacci number markers
+                ctx.fillStyle = `hsla(${120 + this.age * 0.1}, 80%, 70%, 0.6)`;
+                let fibSeq = fibonacci();
+                for (let i = 0; i < this.growth * 10; i++) {
+                    const fibNum = fibSeq.next().value;
+                    const angle = fibNum * this.branchAngle;
+                    const radius = Math.sqrt(fibNum) * 8;
+                    
+                    ctx.beginPath();
+                    ctx.arc(
+                        Math.cos(angle) * radius,
+                        Math.sin(angle) * radius,
+                        2, 0, Math.PI * 2
+                    );
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+
+            drawCrystalGeometry() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.scale(this.currentScale, this.currentScale);
+
+                // Draw geometric crystal structure
+                this.crystalFaces.forEach((face, index) => {
+                    face.growth = Math.min((this.age - (index * 55)) / 100, 1);
+                    if (face.growth <= 0) return;
+
+                    ctx.save();
+                    ctx.rotate(face.angle);
+                    
+                    // Draw crystal face
+                    ctx.strokeStyle = `hsla(${200 + index * 15}, 60%, 50%, ${face.growth * 0.8})`;
+                    ctx.fillStyle = `hsla(${200 + index * 15}, 60%, 30%, ${face.growth * 0.3})`;
+                    ctx.lineWidth = 1.5;
+                    
+                    ctx.beginPath();
+                    for (let v = 0; v < face.vertices; v++) {
+                        const vAngle = (v / face.vertices) * Math.PI * 2;
+                        const vRadius = face.size * face.growth;
+                        const x = Math.cos(vAngle) * vRadius;
+                        const y = Math.sin(vAngle) * vRadius;
+                        
+                        if (v === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.restore();
+                });
+
+                ctx.restore();
+            }
+
+            drawCellularPattern() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.scale(this.currentScale, this.currentScale);
+
+                // Voronoi-like cellular structure with geometric precision
+                const cellSize = 30;
+                const divisions = Math.min(this.cellDivisions, 6);
+                
+                for (let div = 0; div <= divisions; div++) {
+                    const divisionScale = Math.pow(INVERSE_PHI, div);
+                    const cellCount = Math.pow(2, div); // Binary division
+                    
+                    ctx.strokeStyle = `hsla(${60 + div * 20}, 80%, 60%, ${0.6 - div * 0.1})`;
+                    ctx.lineWidth = 2 - div * 0.2;
+                    
+                    for (let i = 0; i < cellCount; i++) {
+                        const angle = (i / cellCount) * Math.PI * 2;
+                        const radius = cellSize * divisionScale * this.growth;
+                        
+                        ctx.save();
+                        ctx.translate(
+                            Math.cos(angle) * radius * 0.5,
+                            Math.sin(angle) * radius * 0.5
+                        );
+                        
+                        // Draw hexagonal cell (nature's favorite geometry)
+                        ctx.beginPath();
+                        for (let h = 0; h < 6; h++) {
+                            const hAngle = (h / 6) * Math.PI * 2;
+                            const hx = Math.cos(hAngle) * radius;
+                            const hy = Math.sin(hAngle) * radius;
+                            
+                            if (h === 0) {
+                                ctx.moveTo(hx, hy);
+                            } else {
+                                ctx.lineTo(hx, hy);
+                            }
+                        }
+                        ctx.closePath();
+                        ctx.stroke();
+                        
+                        ctx.restore();
+                    }
+                }
+
+                ctx.restore();
+            }
+
+            draw() {
+                if (this.growth <= 0) return;
+
+                switch (this.type) {
+                    case 'spiral':
+                        this.drawFibonacciSpiral();
+                        break;
+                    case 'crystal':
+                        this.drawCrystalGeometry();
+                        break;
+                    case 'cellular':
+                        this.drawCellularPattern();
+                        break;
+                }
+
+                // Draw connecting branches between structures
+                this.branches.forEach((branch, index) => {
+                    branch.growth = Math.min((this.age - branch.birthTime) / 100, 1);
+                    if (branch.growth <= 0) return;
+
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(branch.angle);
+                    
+                    const endX = branch.distance * branch.growth * this.currentScale;
+                    const endY = 0;
+                    
+                    ctx.strokeStyle = `hsla(${90 + index * 10}, 50%, 50%, 0.4)`;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    
+                    // Organic curve using sine waves
+                    for (let t = 0; t <= 1; t += 0.05) {
+                        const x = endX * t;
+                        const y = Math.sin(t * Math.PI * 2 + time * 0.02) * 5 * t;
+                        ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
+                    
+                    ctx.restore();
+                });
+            }
+
+            isDead() {
+                return this.age > this.maxAge;
+            }
+        }
+
+        function addGrowthSite(x, y) {
+            const types = ['spiral', 'crystal', 'cellular'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            organicStructures.push(new OrganicGeometry(x, y, type));
+        }
+
+        function animate() {
+            // Clear canvas with organic fade
+            ctx.fillStyle = 'rgba(10, 15, 10, 0.02)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            time++;
+
+            // Update and draw all organic structures
+            organicStructures = organicStructures.filter(structure => {
+                structure.update();
+                structure.draw();
+                return !structure.isDead();
+            });
+
+            // Automatically spawn new growth occasionally
+            if (time % 300 === 0 && organicStructures.length < 8) {
+                addGrowthSite(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height
+                );
+            }
+
+            // Draw subtle grid lines showing mathematical foundation
+            if (organicStructures.length > 0) {
+                ctx.strokeStyle = 'rgba(42, 63, 42, 0.1)';
+                ctx.lineWidth = 0.5;
+                const gridSize = 100 / PHI; // Grid based on golden ratio
+                
+                ctx.beginPath();
+                for (let x = 0; x < canvas.width; x += gridSize) {
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, canvas.height);
+                }
+                for (let y = 0; y < canvas.height; y += gridSize) {
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(canvas.width, y);
+                }
+                ctx.stroke();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // Event handlers
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            addGrowthSite(x, y);
+        });
+
+        window.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case ' ':
+                    organicStructures = [];
+                    time = 0;
+                    e.preventDefault();
+                    break;
+                case 'r':
+                case 'R':
+                    time *= -1; // Reverse time flow
+                    break;
+            }
+        });
+
+        // Start with a single seed structure
+        addGrowthSite(canvas.width / 2, canvas.height / 2);
+
+        // Begin the organic dance
+        animate();
+    </script>
+</body>
+</html>

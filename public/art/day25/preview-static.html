@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organic Geometry Preview | GENUARY 2026</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0a0f0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        canvas {
+            border: 1px solid #2a3f2a;
+            background: radial-gradient(circle at center, #0f1a0f 0%, #050a05 100%);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 1400;
+        canvas.height = 900;
+
+        const PHI = (1 + Math.sqrt(5)) / 2;
+
+        // Draw static organic geometry composition
+        function drawStaticComposition() {
+            // Background
+            ctx.fillStyle = 'rgba(10, 15, 10, 1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Subtle grid
+            ctx.strokeStyle = 'rgba(42, 63, 42, 0.1)';
+            ctx.lineWidth = 0.5;
+            const gridSize = 100 / PHI;
+            
+            ctx.beginPath();
+            for (let x = 0; x < canvas.width; x += gridSize) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+            }
+            for (let y = 0; y < canvas.height; y += gridSize) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+            }
+            ctx.stroke();
+
+            // Central Fibonacci spiral
+            ctx.save();
+            ctx.translate(canvas.width * 0.4, canvas.height * 0.6);
+            
+            ctx.strokeStyle = 'hsla(120, 70%, 60%, 0.8)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            
+            for (let t = 0; t < 4 * Math.PI * 2; t += 0.05) {
+                const spiralScale = Math.pow(PHI, t * 0.12);
+                const x = Math.cos(t) * spiralScale * 8;
+                const y = Math.sin(t) * spiralScale * 8;
+                
+                if (t === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+
+            // Fibonacci points
+            ctx.fillStyle = 'hsla(120, 80%, 70%, 0.9)';
+            let fibNums = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55];
+            for (let i = 0; i < fibNums.length; i++) {
+                const angle = fibNums[i] * (Math.PI * 2 / PHI);
+                const radius = Math.sqrt(fibNums[i]) * 12;
+                
+                ctx.beginPath();
+                ctx.arc(
+                    Math.cos(angle) * radius,
+                    Math.sin(angle) * radius,
+                    3, 0, Math.PI * 2
+                );
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // Crystal structure
+            ctx.save();
+            ctx.translate(canvas.width * 0.75, canvas.height * 0.3);
+            
+            for (let face = 0; face < 6; face++) {
+                const angle = (face / 6) * Math.PI * 2;
+                const vertices = 6;
+                const size = 40 + face * 8;
+                
+                ctx.save();
+                ctx.rotate(angle);
+                
+                ctx.strokeStyle = `hsla(${200 + face * 10}, 60%, 50%, 0.7)`;
+                ctx.fillStyle = `hsla(${200 + face * 10}, 60%, 30%, 0.3)`;
+                ctx.lineWidth = 2;
+                
+                ctx.beginPath();
+                for (let v = 0; v < vertices; v++) {
+                    const vAngle = (v / vertices) * Math.PI * 2;
+                    const x = Math.cos(vAngle) * size;
+                    const y = Math.sin(vAngle) * size;
+                    
+                    if (v === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+            ctx.restore();
+
+            // Cellular pattern
+            ctx.save();
+            ctx.translate(canvas.width * 0.25, canvas.height * 0.25);
+            
+            const cellSize = 25;
+            for (let div = 0; div <= 4; div++) {
+                const divisionScale = Math.pow(1/PHI, div);
+                const cellCount = Math.pow(2, div);
+                
+                ctx.strokeStyle = `hsla(${60 + div * 15}, 80%, 60%, ${0.6 - div * 0.1})`;
+                ctx.lineWidth = 2;
+                
+                for (let i = 0; i < cellCount; i++) {
+                    const angle = (i / cellCount) * Math.PI * 2;
+                    const radius = cellSize * divisionScale;
+                    
+                    ctx.save();
+                    ctx.translate(
+                        Math.cos(angle) * radius * 1.5,
+                        Math.sin(angle) * radius * 1.5
+                    );
+                    
+                    // Hexagonal cell
+                    ctx.beginPath();
+                    for (let h = 0; h < 6; h++) {
+                        const hAngle = (h / 6) * Math.PI * 2;
+                        const hx = Math.cos(hAngle) * radius;
+                        const hy = Math.sin(hAngle) * radius;
+                        
+                        if (h === 0) {
+                            ctx.moveTo(hx, hy);
+                        } else {
+                            ctx.lineTo(hx, hy);
+                        }
+                    }
+                    ctx.closePath();
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+            ctx.restore();
+
+            // Branching connections
+            ctx.strokeStyle = 'hsla(90, 50%, 50%, 0.4)';
+            ctx.lineWidth = 1.5;
+            
+            // Connect spiral to crystal
+            ctx.beginPath();
+            ctx.moveTo(canvas.width * 0.4 + 100, canvas.height * 0.6);
+            ctx.quadraticCurveTo(
+                canvas.width * 0.6, canvas.height * 0.4,
+                canvas.width * 0.75 - 50, canvas.height * 0.3
+            );
+            ctx.stroke();
+
+            // Connect cellular to spiral
+            ctx.beginPath();
+            ctx.moveTo(canvas.width * 0.25 + 50, canvas.height * 0.25 + 50);
+            ctx.quadraticCurveTo(
+                canvas.width * 0.3, canvas.height * 0.45,
+                canvas.width * 0.4 - 80, canvas.height * 0.6 - 40
+            );
+            ctx.stroke();
+
+            // Additional smaller spirals
+            for (let i = 0; i < 3; i++) {
+                const x = canvas.width * (0.1 + i * 0.3);
+                const y = canvas.height * (0.7 + Math.sin(i) * 0.2);
+                const scale = 0.3 + i * 0.1;
+                
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.scale(scale, scale);
+                
+                ctx.strokeStyle = `hsla(${130 + i * 20}, 60%, 50%, 0.6)`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                
+                for (let t = 0; t < 3 * Math.PI; t += 0.1) {
+                    const spiralScale = Math.pow(PHI, t * 0.1);
+                    const sx = Math.cos(t) * spiralScale * 10;
+                    const sy = Math.sin(t) * spiralScale * 10;
+                    
+                    if (t === 0) {
+                        ctx.moveTo(sx, sy);
+                    } else {
+                        ctx.lineTo(sx, sy);
+                    }
+                }
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        drawStaticComposition();
+    </script>
+</body>
+</html>
