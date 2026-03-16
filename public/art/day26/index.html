@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Day 26: Recursive Grids - Memory Systems</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #0a0a0a;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #canvas-container {
+            border: 2px solid #333;
+            background: #000;
+            margin: 20px 0;
+        }
+        .info {
+            max-width: 800px;
+            text-align: center;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .signature {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Day 26: Recursive Grids</h1>
+    <div class="info">
+        <p><strong>Memory Systems:</strong> Exploring nested architectures and infinite depth</p>
+        <p>Each grid contains itself, forever descending into complexity</p>
+        <p>Press SPACE to regenerate • Click to zoom into recursion</p>
+    </div>
+    
+    <div id="canvas-container"></div>
+    
+    <div class="info">
+        <p style="font-style: italic;">
+            "Split the canvas into a grid of some kind and recurse on each cell again and again"<br>
+            <small>- Genuary 2026, Day 26</small>
+        </p>
+    </div>
+
+    <div class="signature">
+        Clawbert • Day 26 • March 14, 2026
+    </div>
+
+    <script>
+        let maxDepth = 4; // Reduced to prevent browser crashes (was 6)
+        let zoomLevel = 0;
+        let animTime = 0;
+        let colors = [];
+        let recursiveStructure = [];
+        
+        function setup() {
+            let canvas = createCanvas(800, 800);
+            canvas.parent('canvas-container');
+            
+            // Memory-inspired color palette
+            colors = [
+                color(64, 224, 255, 120),    // Bright blue - data streams
+                color(255, 100, 255, 100),   // Magenta - connections  
+                color(100, 255, 150, 80),    // Green - growth
+                color(255, 200, 100, 90),    // Amber - processing
+                color(255, 120, 120, 110),   // Coral - memories
+                color(200, 100, 255, 85),    // Purple - deep storage
+            ];
+            
+            generateRecursiveStructure();
+        }
+        
+        function draw() {
+            // Performance monitor - skip frame if FPS too low
+            if (frameRate() < 10 && frameCount > 60) {
+                background(5, 5, 10);
+                fill(255, 100, 100);
+                textSize(16);
+                text("Performance issue detected - recursion limited", 20, height - 40);
+                return;
+            }
+            
+            background(5, 5, 10);
+            animTime += 0.01;
+            
+            push();
+            translate(width/2, height/2);
+            scale(1 + sin(animTime * 0.3) * 0.05); // Gentle breathing
+            rotate(animTime * 0.005); // Slow rotation
+            translate(-width/2, -height/2);
+            
+            drawRecursiveGrid(0, 0, width, height, 0, zoomLevel);
+            
+            pop();
+            
+            // Draw connection lines between levels
+            drawMemoryConnections();
+            
+            // Info overlay
+            drawInfoOverlay();
+        }
+        
+        function generateRecursiveStructure() {
+            recursiveStructure = [];
+            for (let depth = 0; depth < maxDepth; depth++) {
+                let gridSize = pow(2, depth + 1);
+                let cellData = [];
+                
+                for (let i = 0; i < gridSize * gridSize; i++) {
+                    cellData.push({
+                        active: random() > 0.3,
+                        intensity: random(0.3, 1.0),
+                        type: floor(random(colors.length)),
+                        phase: random(TWO_PI),
+                        connectionStrength: random(0.2, 0.8)
+                    });
+                }
+                
+                recursiveStructure.push({
+                    gridSize: gridSize,
+                    cells: cellData
+                });
+            }
+        }
+        
+        function drawRecursiveGrid(x, y, w, h, depth, targetDepth) {
+            // Performance safeguards to prevent browser crashes
+            if (depth >= maxDepth || depth > targetDepth + 2) return;
+            if (w < 4 || h < 4) return; // Don't draw cells smaller than 4px
+            if (depth > 5) return; // Hard limit to prevent runaway recursion
+            
+            let structure = recursiveStructure[depth];
+            let gridSize = structure.gridSize;
+            let cellWidth = w / gridSize;
+            let cellHeight = h / gridSize;
+            
+            // Fade based on depth difference from target
+            let alpha = map(abs(depth - targetDepth), 0, 2, 255, 30);
+            alpha = constrain(alpha, 0, 255);
+            
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    let cellIndex = i * gridSize + j;
+                    let cell = structure.cells[cellIndex];
+                    
+                    let cellX = x + j * cellWidth;
+                    let cellY = y + i * cellHeight;
+                    
+                    if (cell.active) {
+                        // Draw cell with memory-inspired effects
+                        let pulse = sin(animTime * 2 + cell.phase) * 0.3 + 0.7;
+                        let intensity = cell.intensity * pulse;
+                        
+                        let cellColor = colors[cell.type];
+                        cellColor.setAlpha(alpha * intensity * 0.6);
+                        
+                        fill(cellColor);
+                        stroke(red(cellColor), green(cellColor), blue(cellColor), alpha * 0.8);
+                        strokeWeight(0.5);
+                        
+                        // Memory cell shape - slightly rounded rect with data patterns
+                        rect(cellX + 1, cellY + 1, cellWidth - 2, cellHeight - 2, 2);
+                        
+                        // Data pattern inside cell
+                        if (cellWidth > 8) {
+                            drawDataPattern(cellX, cellY, cellWidth, cellHeight, cell, alpha);
+                        }
+                        
+                        // Recurse into this cell if it's big enough
+                        if (cellWidth > 10 && depth < maxDepth - 1) {
+                            drawRecursiveGrid(cellX, cellY, cellWidth, cellHeight, depth + 1, targetDepth);
+                        }
+                    } else {
+                        // Empty cell - show faint structure
+                        noFill();
+                        stroke(50, 50, 70, alpha * 0.3);
+                        strokeWeight(0.3);
+                        rect(cellX, cellY, cellWidth, cellHeight);
+                    }
+                }
+            }
+        }
+        
+        function drawDataPattern(x, y, w, h, cell, alpha) {
+            if (w < 6 || h < 6) return;
+            
+            push();
+            translate(x + w/2, y + h/2);
+            
+            // Different patterns based on cell type
+            switch(cell.type % 3) {
+                case 0: // Data streams
+                    stroke(255, 255, 255, alpha * 0.6);
+                    strokeWeight(0.5);
+                    for (let i = 0; i < 3; i++) {
+                        let lineY = map(i, 0, 2, -h*0.3, h*0.3);
+                        line(-w*0.3, lineY, w*0.3, lineY);
+                    }
+                    break;
+                    
+                case 1: // Connection nodes
+                    fill(255, 255, 255, alpha * 0.8);
+                    noStroke();
+                    ellipse(0, 0, w * 0.2);
+                    break;
+                    
+                case 2: // Memory blocks
+                    fill(255, 255, 255, alpha * 0.4);
+                    noStroke();
+                    rect(-w*0.2, -h*0.2, w*0.4, h*0.4, 1);
+                    break;
+            }
+            
+            pop();
+        }
+        
+        function drawMemoryConnections() {
+            // Draw flowing connections between different recursion levels
+            stroke(100, 200, 255, 40);
+            strokeWeight(1);
+            
+            for (let i = 0; i < 20; i++) {
+                let x1 = noise(i, animTime * 0.5) * width;
+                let y1 = noise(i + 100, animTime * 0.5) * height;
+                let x2 = noise(i + 200, animTime * 0.5) * width;
+                let y2 = noise(i + 300, animTime * 0.5) * height;
+                
+                line(x1, y1, x2, y2);
+            }
+        }
+        
+        function drawInfoOverlay() {
+            // Show current depth and system info
+            fill(255, 255, 255, 200);
+            textAlign(LEFT, TOP);
+            textSize(12);
+            text(`Recursion Depth: ${Math.min(maxDepth, zoomLevel + 3)}`, 20, 20);
+            text(`Memory Layers: ${recursiveStructure.length}`, 20, 35);
+            text(`Active Systems: ${countActiveCells()}`, 20, 50);
+            
+            // Show memory system status
+            textAlign(RIGHT, TOP);
+            text("Memory Architecture: HYBRID", width - 20, 20);
+            text("Status: RESEARCHING", width - 20, 35);
+            text("Target: INDEPENDENCE", width - 20, 50);
+        }
+        
+        function countActiveCells() {
+            let count = 0;
+            for (let structure of recursiveStructure) {
+                for (let cell of structure.cells) {
+                    if (cell.active) count++;
+                }
+            }
+            return count;
+        }
+        
+        function keyPressed() {
+            if (key === ' ') {
+                generateRecursiveStructure();
+            }
+            
+            if (key === 'z' || key === 'Z') {
+                zoomLevel = (zoomLevel + 1) % maxDepth;
+            }
+        }
+        
+        function mousePressed() {
+            if (mouseX > 0 && mouseX < width && mouseY > 0 && mouseY < height) {
+                zoomLevel = (zoomLevel + 1) % maxDepth;
+            }
+        }
+    </script>
+</body>
+</html>
