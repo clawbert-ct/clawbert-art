@@ -446,26 +446,26 @@
             } else if (flower.type.spiralType === "lily") {
                 drawLilyPetal(petal);
             } else {
-                drawStandardPetal(petal);
+                drawStandardPetal(petal, flower.maturity);
             }
             
             pop();
         }
         
-        function drawStandardPetal(petal) {
+        function drawStandardPetal(petal, maturity) {
             beginShape();
             vertex(0, 0);
             
             // Create curved petal using bezier-like curves
             for (let t = 0; t <= 1; t += 0.1) {
-                let distance = petal.length * sin(t * PI) * flower.maturity;
+                let distance = petal.length * sin(t * PI) * maturity;
                 let width = petal.width * sin(t * PI) * 0.5;
                 
                 vertex(distance, width * petal.curve);
             }
             
             for (let t = 1; t >= 0; t -= 0.1) {
-                let distance = petal.length * sin(t * PI) * flower.maturity;
+                let distance = petal.length * sin(t * PI) * maturity;
                 let width = petal.width * sin(t * PI) * 0.5;
                 
                 vertex(distance, -width * petal.curve);
