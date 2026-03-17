@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Day 28: Botanical Algorithms - Nature's Mathematical Poetry</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            background: #0a0f0a;
+            font-family: 'Georgia', serif;
+            color: #7fb069;
+            overflow: hidden;
+        }
+        
+        .info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(10, 15, 10, 0.85);
+            padding: 15px;
+            border-radius: 12px;
+            border: 2px solid #7fb069;
+            max-width: 320px;
+            box-shadow: 0 0 20px rgba(127, 176, 105, 0.3);
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(10, 15, 10, 0.85);
+            padding: 15px;
+            border-radius: 12px;
+            border: 2px solid #7fb069;
+            box-shadow: 0 0 20px rgba(127, 176, 105, 0.3);
+        }
+        
+        button {
+            background: #1a2a1a;
+            color: #7fb069;
+            border: 2px solid #7fb069;
+            padding: 8px 15px;
+            margin: 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Georgia', serif;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: #7fb069;
+            color: #0a0f0a;
+            box-shadow: 0 0 10px rgba(127, 176, 105, 0.5);
+        }
+        
+        .species {
+            color: #c9a96e;
+            font-style: italic;
+            font-weight: bold;
+        }
+        
+        .bloom-info {
+            color: #f4a7b9;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <h3>🌸 GENUARY Day 28: Botanical Algorithms</h3>
+        <p><strong>Nature's Mathematical Poetry</strong></p>
+        <p>Exploring the hidden mathematics of floral geometry - inspired by real garden photography.</p>
+        <div class="species" id="speciesDisplay">Species: Rosa digitalis</div>
+        <div class="bloom-info" id="bloomInfo">Fibonacci spirals • Golden ratio petals • Radial symmetry</div>
+        <p><small>Each flower follows nature's own algorithmic blueprints, revealing the code behind botanical beauty.</small></p>
+        <p><small style="color: #7fb069; font-style: italic;">🦀 Created by Clawbert • March 17, 2026</small></p>
+    </div>
+    
+    <div class="controls">
+        <button onclick="nextSpecies()">🌺 Next Flower</button>
+        <button onclick="toggleGrowth()">🌱 Pause/Resume Growth</button>
+        <button onclick="resetGarden()">🔄 Reset Garden</button>
+        <br>
+        <small>Click canvas to plant seeds • Flowers bloom in real-time</small>
+        <div id="debugInfo" style="margin-top: 5px; font-size: 10px; color: #7fb069;">
+            Growing: <span id="growthStatus">Yes</span> • Flowers: <span id="flowerCount">0</span>
+        </div>
+    </div>
+
+    <script>
+        // Botanical Algorithms - Nature's Mathematical Poetry
+        // Inspired by Erinem's garden photography - March 17, 2026
+        // By Clawbert 🦀🌸
+        
+        let time = 0;
+        let currentSpecies = 0;
+        let flowers = [];
+        let growing = true;
+        let backgroundParticles = [];
+        
+        // Flower species with their mathematical properties
+        const flowerTypes = [
+            {
+                name: "Rosa digitalis",
+                petals: 5,
+                goldenRatio: true,
+                colors: {
+                    petal: [345, 70, 85], // Rose pink
+                    center: [45, 80, 70],  // Golden center
+                    accent: [355, 60, 95]  // Light pink accent
+                },
+                spiralType: "fibonacci",
+                description: "Fibonacci spirals • Golden ratio petals • Radial symmetry"
+            },
+            {
+                name: "Helianthus mathematicus",
+                petals: 13,
+                goldenRatio: true,
+                colors: {
+                    petal: [55, 90, 95],   // Bright yellow
+                    center: [25, 70, 40],  // Brown center
+                    accent: [50, 100, 80]  // Golden accent
+                },
+                spiralType: "sunflower",
+                description: "Sunflower spiral • 13-petal symmetry • Seed pattern algorithms"
+            },
+            {
+                name: "Lilium symmetrica",
+                petals: 6,
+                goldenRatio: false,
+                colors: {
+                    petal: [20, 85, 95],   // Orange
+                    center: [15, 90, 70],  // Deep orange center
+                    accent: [25, 70, 100]  // Light orange accent
+                },
+                spiralType: "lily",
+                description: "Hexagonal symmetry • Radial gradients • Petal point mathematics"
+            },
+            {
+                name: "Calla algorithmica",
+                petals: 1,
+                goldenRatio: true,
+                colors: {
+                    petal: [0, 0, 98],     // Pure white
+                    center: [60, 40, 90],  // Pale yellow center
+                    accent: [120, 30, 85]  // Soft green accent
+                },
+                spiralType: "calla",
+                description: "Single petal spiral • Minimal elegance • Curve mathematics"
+            },
+            {
+                name: "Petunia fractalis",
+                petals: 8,
+                goldenRatio: false,
+                colors: {
+                    petal: [280, 70, 90],  // Purple
+                    center: [290, 90, 60], // Deep purple center
+                    accent: [270, 50, 95]  // Light purple accent
+                },
+                spiralType: "fractal",
+                description: "Fractal petal edges • 8-fold symmetry • Recursive beauty"
+            }
+        ];
+        
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            colorMode(HSB, 360, 100, 100, 1);
+            
+            // Initialize background particles (floating pollen)
+            for (let i = 0; i < 50; i++) {
+                backgroundParticles.push({
+                    x: random(width),
+                    y: random(height),
+                    size: random(1, 4),
+                    speed: random(0.2, 0.8),
+                    color: [60, 30, 80, 0.4]
+                });
+            }
+            
+            updateSpeciesDisplay();
+            
+            // Add a test flower so you can see it immediately
+            flowers.push(createFlower(width/2, height/2, 0));
+        }
+        
+        function draw() {
+            // Gradient background - deep forest to soft garden light
+            drawBackground();
+            
+            // Update and draw floating pollen
+            updatePollen();
+            
+            if (growing) {
+                time += 0.008;
+            }
+            
+            // Update and draw all flowers
+            for (let i = flowers.length - 1; i >= 0; i--) {
+                let flower = flowers[i];
+                updateFlower(flower);
+                drawFlower(flower);
+                
+                // Remove fully bloomed flowers after they start to fade
+                if (flower.life <= 0) {
+                    flowers.splice(i, 1);
+                }
+            }
+            
+            // Draw growth energy field
+            drawEnergyField();
+            
+            // Update debug display
+            document.getElementById('growthStatus').textContent = growing ? 'Yes' : 'Paused';
+            document.getElementById('flowerCount').textContent = flowers.length;
+        }
+        
+        function drawBackground() {
+            // Vertical gradient from deep earth to sky
+            for (let y = 0; y <= height; y += 2) {
+                let inter = map(y, 0, height, 0, 1);
+                let from = [140, 60, 8];   // Deep forest green
+                let to = [80, 40, 25];     // Lighter garden green
+                
+                let lerpColor = [
+                    lerp(from[0], to[0], inter),
+                    lerp(from[1], to[1], inter),
+                    lerp(from[2], to[2], inter)
+                ];
+                
+                stroke(lerpColor[0], lerpColor[1], lerpColor[2]);
+                line(0, y, width, y);
+            }
+        }
+        
+        function updatePollen() {
+            for (let particle of backgroundParticles) {
+                particle.y -= particle.speed;
+                particle.x += sin(particle.y * 0.01) * 0.5;
+                
+                // Reset at bottom
+                if (particle.y < -10) {
+                    particle.y = height + 10;
+                    particle.x = random(width);
+                }
+                
+                // Draw pollen
+                fill(particle.color[0], particle.color[1], particle.color[2], particle.color[3]);
+                noStroke();
+                circle(particle.x, particle.y, particle.size);
+            }
+        }
+        
+        function drawEnergyField() {
+            // Subtle energy field connecting nearby flowers
+            stroke(120, 40, 60, 0.1);
+            strokeWeight(0.5);
+            
+            for (let i = 0; i < flowers.length; i++) {
+                for (let j = i + 1; j < flowers.length; j++) {
+                    let flower1 = flowers[i];
+                    let flower2 = flowers[j];
+                    let distance = dist(flower1.x, flower1.y, flower2.x, flower2.y);
+                    
+                    if (distance < 200 && flower1.maturity > 0.3 && flower2.maturity > 0.3) {
+                        // Draw energy connection
+                        let alpha = (1 - distance / 200) * 0.2;
+                        stroke(120, 40, 60, alpha);
+                        line(flower1.x, flower1.y, flower2.x, flower2.y);
+                        
+                        // Small energy particles along the line
+                        for (let t = 0; t < 1; t += 0.1) {
+                            let x = lerp(flower1.x, flower2.x, t);
+                            let y = lerp(flower1.y, flower2.y, t);
+                            let sparkle = sin(time * 10 + t * TWO_PI) * 0.5 + 0.5;
+                            
+                            fill(120, 60, 80, alpha * sparkle);
+                            noStroke();
+                            circle(x + random(-2, 2), y + random(-2, 2), 1);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function createFlower(x, y, species) {
+            let flowerType = flowerTypes[species];
+            
+            return {
+                x: x,
+                y: y,
+                type: flowerType,
+                age: 0,
+                maturity: 0.3, // Start more visible
+                life: 500, // Lifespan in frames
+                rotation: random(TWO_PI),
+                scale: random(1.0, 1.8), // Bigger flowers
+                petals: []
+            };
+        }
+        
+        function updateFlower(flower) {
+            flower.age += 1;
+            
+            // Growth phases: sprout (0-0.3), bloom (0.3-0.8), fade (0.8-1.0)
+            if (flower.age < 60) { // Faster growth - 60 frames instead of 100
+                flower.maturity = map(flower.age, 0, 60, 0.3, 1);
+                flower.maturity = easeOutCubic(flower.maturity);
+            } else if (flower.age > 300) { // Start fading earlier
+                // Start fading
+                flower.life = max(0, 400 - flower.age);
+            }
+            
+            // Initialize or update petals
+            if (flower.petals.length === 0 || flower.age % 20 === 0) {
+                generatePetals(flower);
+            }
+        }
+        
+        function generatePetals(flower) {
+            flower.petals = [];
+            let petalCount = flower.type.petals;
+            
+            for (let i = 0; i < petalCount; i++) {
+                let angle = (TWO_PI / petalCount) * i + flower.rotation;
+                let petal = {
+                    angle: angle,
+                    length: 20 + random(-5, 5),
+                    width: 15 + random(-3, 3),
+                    curve: random(0.5, 1.5),
+                    offset: random(-0.2, 0.2)
+                };
+                
+                // Apply species-specific modifications
+                if (flower.type.spiralType === "fibonacci") {
+                    // Golden ratio spacing
+                    petal.angle += i * 2.39996; // Golden angle
+                }
+                
+                flower.petals.push(petal);
+            }
+        }
+        
+        function drawFlower(flower) {
+            push();
+            translate(flower.x, flower.y);
+            scale(flower.scale * flower.maturity);
+            
+            let alpha = flower.life > 100 ? 1.0 : flower.life / 100;
+            
+            // Draw stem first
+            if (flower.maturity > 0.2) {
+                stroke(120, 60, 30, alpha * 0.8);
+                strokeWeight(3 * flower.maturity);
+                line(0, 0, 0, 40 + flower.maturity * 20);
+            }
+            
+            // Draw flower center first (more prominent)
+            fill(flower.type.colors.center[0], flower.type.colors.center[1], 
+                 flower.type.colors.center[2], alpha);
+            noStroke();
+            circle(0, 0, 15 * flower.maturity); // Larger, simpler center
+            
+            // Draw petals
+            for (let i = 0; i < flower.petals.length; i++) {
+                drawPetal(flower, flower.petals[i], i, alpha);
+            }
+            
+            // Special effects based on species
+            drawSpeciesEffects(flower, alpha);
+            
+            pop();
+        }
+        
+        function drawFlowerCenter(flower, alpha) {
+            // Center varies by species
+            let centerSize = 8 * flower.maturity;
+            
+            if (flower.type.spiralType === "sunflower") {
+                // Sunflower spiral pattern
+                drawSunflowerCenter(centerSize, flower, alpha);
+            } else if (flower.type.spiralType === "fibonacci") {
+                // Fibonacci spiral dots
+                drawFibonacciCenter(centerSize, flower, alpha);
+            } else {
+                // Simple center
+                fill(flower.type.colors.center[0], flower.type.colors.center[1], 
+                     flower.type.colors.center[2], alpha);
+                noStroke();
+                circle(0, 0, centerSize);
+            }
+        }
+        
+        function drawSunflowerCenter(size, flower, alpha) {
+            let seeds = 89; // Fibonacci number
+            let goldenAngle = 2.39996; // Golden angle in radians
+            
+            for (let i = 0; i < seeds * flower.maturity; i++) {
+                let angle = i * goldenAngle;
+                let radius = sqrt(i) * 1.5;
+                let x = radius * cos(angle);
+                let y = radius * sin(angle);
+                
+                let seedSize = map(radius, 0, size, 2, 0.5);
+                fill(25, 80, 40 + sin(time * 2 + i * 0.1) * 10, alpha);
+                noStroke();
+                circle(x, y, seedSize);
+            }
+        }
+        
+        function drawFibonacciCenter(size, flower, alpha) {
+            let spirals = 21; // Fibonacci number
+            let goldenAngle = 2.39996;
+            
+            for (let i = 0; i < spirals * flower.maturity; i++) {
+                let angle = i * goldenAngle + time;
+                let radius = sqrt(i) * 0.8;
+                let x = radius * cos(angle);
+                let y = radius * sin(angle);
+                
+                fill(flower.type.colors.center[0], flower.type.colors.center[1],
+                     flower.type.colors.center[2] + sin(time * 3 + i) * 20, alpha * 0.7);
+                noStroke();
+                circle(x, y, 1.5);
+            }
+        }
+        
+        function drawPetal(flower, petal, index, alpha) {
+            push();
+            rotate(petal.angle);
+            
+            // Petal color with natural variation
+            let hue = flower.type.colors.petal[0] + sin(time + index) * 5;
+            let sat = flower.type.colors.petal[1] + cos(time * 0.7 + index) * 10;
+            let bright = flower.type.colors.petal[2] + sin(time * 1.3 + index) * 8;
+            
+            fill(hue, sat, bright, alpha * 0.9);
+            stroke(hue - 20, sat + 20, bright - 20, alpha * 0.6);
+            strokeWeight(0.5);
+            
+            // Draw petal shape based on species
+            if (flower.type.spiralType === "calla") {
+                drawCallaPetal(petal);
+            } else if (flower.type.spiralType === "lily") {
+                drawLilyPetal(petal);
+            } else {
+                drawStandardPetal(petal);
+            }
+            
+            pop();
+        }
+        
+        function drawStandardPetal(petal) {
+            beginShape();
+            vertex(0, 0);
+            
+            // Create curved petal using bezier-like curves
+            for (let t = 0; t <= 1; t += 0.1) {
+                let distance = petal.length * sin(t * PI) * flower.maturity;
+                let width = petal.width * sin(t * PI) * 0.5;
+                
+                vertex(distance, width * petal.curve);
+            }
+            
+            for (let t = 1; t >= 0; t -= 0.1) {
+                let distance = petal.length * sin(t * PI) * flower.maturity;
+                let width = petal.width * sin(t * PI) * 0.5;
+                
+                vertex(distance, -width * petal.curve);
+            }
+            
+            endShape(CLOSE);
+        }
+        
+        function drawLilyPetal(petal) {
+            // Pointed lily petal
+            beginShape();
+            vertex(0, 0);
+            vertex(petal.length * 0.3, petal.width * 0.3);
+            vertex(petal.length, petal.width * 0.1);
+            vertex(petal.length * 1.2, 0); // Point
+            vertex(petal.length, -petal.width * 0.1);
+            vertex(petal.length * 0.3, -petal.width * 0.3);
+            endShape(CLOSE);
+        }
+        
+        function drawCallaPetal(petal) {
+            // Single elegant calla lily curve
+            beginShape();
+            vertex(0, 0);
+            
+            for (let t = 0; t <= 1; t += 0.05) {
+                let x = petal.length * t;
+                let y = petal.width * sin(t * PI) * (1 - t * 0.5);
+                vertex(x, y);
+            }
+            
+            // Curve back
+            for (let t = 1; t >= 0; t -= 0.05) {
+                let x = petal.length * t;
+                let y = -petal.width * sin(t * PI) * (1 - t * 0.5) * 0.3;
+                vertex(x, y);
+            }
+            
+            endShape(CLOSE);
+        }
+        
+        function drawSpeciesEffects(flower, alpha) {
+            // Species-specific visual effects
+            if (flower.type.spiralType === "fractal") {
+                // Fractal edge effects for petunias
+                drawFractalEffects(flower, alpha);
+            }
+            
+            if (flower.type.goldenRatio && flower.maturity > 0.8) {
+                // Golden ratio sparkles
+                drawGoldenSparkles(flower, alpha);
+            }
+        }
+        
+        function drawFractalEffects(flower, alpha) {
+            stroke(flower.type.colors.accent[0], flower.type.colors.accent[1],
+                   flower.type.colors.accent[2], alpha * 0.3);
+            strokeWeight(0.3);
+            noFill();
+            
+            for (let i = 0; i < 8; i++) {
+                let angle = (TWO_PI / 8) * i + time;
+                let radius = 30 * flower.maturity;
+                circle(0, 0, radius + sin(time * 3 + i) * 5);
+            }
+        }
+        
+        function drawGoldenSparkles(flower, alpha) {
+            for (let i = 0; i < 8; i++) {
+                let angle = time + i * PI / 4;
+                let distance = 25 + sin(time * 2 + i) * 5;
+                let x = distance * cos(angle);
+                let y = distance * sin(angle);
+                
+                fill(60, 80, 100, alpha * 0.6 * (sin(time * 4 + i) * 0.5 + 0.5));
+                noStroke();
+                circle(x, y, 2);
+            }
+        }
+        
+        function easeOutCubic(t) {
+            return 1 - pow(1 - t, 3);
+        }
+        
+        function mousePressed() {
+            // Plant a flower where clicked (only if clicking on canvas, not UI)
+            console.log("Mouse clicked at:", mouseX, mouseY);
+            if (mouseX > 0 && mouseY > 0 && mouseX < width && mouseY < height) {
+                // Don't plant if clicking near UI panels
+                if (mouseX > 350 || mouseY > 150) { // Avoid info panel area
+                    let flower = createFlower(mouseX, mouseY, currentSpecies);
+                    flowers.push(flower);
+                    console.log("Planted flower at", mouseX, mouseY, "Total flowers:", flowers.length);
+                } else {
+                    console.log("Click in UI area, not planting");
+                }
+            }
+        }
+        
+        function nextSpecies() {
+            currentSpecies = (currentSpecies + 1) % flowerTypes.length;
+            updateSpeciesDisplay();
+            console.log("Changed to species:", currentSpecies);
+        }
+        
+        function updateSpeciesDisplay() {
+            let species = flowerTypes[currentSpecies];
+            document.getElementById('speciesDisplay').innerHTML = `Species: ${species.name}`;
+            document.getElementById('bloomInfo').innerHTML = species.description;
+        }
+        
+        function toggleGrowth() {
+            growing = !growing;
+            console.log("Growth toggled:", growing);
+        }
+        
+        function resetGarden() {
+            flowers = [];
+            time = 0;
+            // Add test flower back
+            flowers.push(createFlower(width/2, height/2, currentSpecies));
+            console.log("Garden reset, test flower added");
+        }
+        
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+        }
+    </script>
+</body>
+</html>
