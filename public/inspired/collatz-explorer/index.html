@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collatz Explorer - The 3n+1 Mystery</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            background: #0a0a0a;
+            color: #00ff88;
+            overflow: hidden;
+        }
+        
+        .controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #00ff88;
+        }
+        
+        .controls h2 {
+            margin: 0 0 15px 0;
+            color: #00ffff;
+            font-size: 18px;
+        }
+        
+        .controls label {
+            display: block;
+            margin: 8px 0;
+            font-size: 12px;
+        }
+        
+        .controls input[type="number"] {
+            width: 80px;
+            background: #111;
+            color: #00ff88;
+            border: 1px solid #00ff88;
+            padding: 4px;
+            border-radius: 4px;
+        }
+        
+        .controls button {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px 2px;
+            font-family: inherit;
+            font-weight: bold;
+        }
+        
+        .controls button:hover {
+            background: #00ffff;
+        }
+        
+        .stats {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #00ff88;
+            z-index: 100;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        
+        .mystery-box {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #ff0088;
+            z-index: 100;
+            max-width: 300px;
+            font-size: 11px;
+            color: #ff88aa;
+        }
+        
+        canvas {
+            display: block;
+            background: #000;
+        }
+        
+        .glow {
+            filter: drop-shadow(0 0 3px currentColor);
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <h2>🔢 Collatz Explorer</h2>
+        <label>
+            Start Number:
+            <input type="number" id="startNum" value="27" min="1" max="10000">
+        </label>
+        <label>
+            Speed:
+            <input type="number" id="speed" value="50" min="1" max="200">
+        </label>
+        <button onclick="exploreNumber()">Explore</button>
+        <button onclick="randomExploration()">Random</button>
+        <button onclick="clearCanvas()">Clear</button>
+        <button onclick="showTrails = !showTrails">Toggle Trails</button>
+    </div>
+    
+    <div class="stats">
+        <div><strong>Current:</strong> <span id="currentNum">-</span></div>
+        <div><strong>Steps:</strong> <span id="steps">-</span></div>
+        <div><strong>Max Value:</strong> <span id="maxValue">-</span></div>
+        <div><strong>Active Paths:</strong> <span id="activePaths">0</span></div>
+    </div>
+    
+    <div class="mystery-box">
+        <strong>The Collatz Conjecture:</strong><br>
+        For any positive integer n:<br>
+        • If n is even: n ÷ 2<br>
+        • If n is odd: 3n + 1<br><br>
+        <em>Does every number eventually reach 1?</em><br>
+        Nobody knows for sure... 🤯
+    </div>
+    
+    <canvas id="canvas"></canvas>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let width, height;
+        let particles = [];
+        let activePaths = [];
+        let showTrails = true;
+        
+        function resizeCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        class CollatzParticle {
+            constructor(n, startX, startY, color) {
+                this.originalN = n;
+                this.n = n;
+                this.x = startX;
+                this.y = startY;
+                this.baseX = startX;
+                this.baseY = startY;
+                this.color = color;
+                this.trail = [{x: startX, y: startY}];
+                this.steps = 0;
+                this.maxValue = n;
+                this.velocity = 2;
+                this.angle = Math.random() * Math.PI * 2;
+                this.size = 3;
+                this.dead = false;
+                this.pulsePhase = Math.random() * Math.PI * 2;
+            }
+            
+            update() {
+                if (this.dead || this.n === 1) return;
+                
+                // Collatz step
+                if (this.n % 2 === 0) {
+                    this.n = this.n / 2;
+                    this.angle += 0.3; // Even numbers curve right
+                    this.velocity *= 0.98; // Slow down slightly
+                } else {
+                    this.n = this.n * 3 + 1;
+                    this.angle -= 0.2; // Odd numbers curve left
+                    this.velocity *= 1.02; // Speed up slightly
+                }
+                
+                this.steps++;
+                if (this.n > this.maxValue) this.maxValue = this.n;
+                
+                // Update position based on current number
+                this.velocity = Math.max(1, Math.min(5, Math.log(this.n) * 0.5));
+                this.x += Math.cos(this.angle) * this.velocity;
+                this.y += Math.sin(this.angle) * this.velocity;
+                
+                // Wrap around screen
+                if (this.x < 0) this.x = width;
+                if (this.x > width) this.x = 0;
+                if (this.y < 0) this.y = height;
+                if (this.y > height) this.y = 0;
+                
+                // Add to trail
+                if (showTrails) {
+                    this.trail.push({x: this.x, y: this.y, n: this.n});
+                    if (this.trail.length > 100) this.trail.shift();
+                }
+                
+                // Check if reached 1
+                if (this.n === 1) {
+                    this.size = 8;
+                    this.color = '#00ffff';
+                }
+                
+                this.pulsePhase += 0.1;
+            }
+            
+            draw() {
+                if (this.dead) return;
+                
+                // Draw trail
+                if (showTrails && this.trail.length > 1) {
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 1;
+                    ctx.globalAlpha = 0.3;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(this.trail[0].x, this.trail[0].y);
+                    for (let i = 1; i < this.trail.length; i++) {
+                        const point = this.trail[i];
+                        ctx.lineTo(point.x, point.y);
+                    }
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                }
+                
+                // Draw particle
+                const pulse = Math.sin(this.pulsePhase) * 0.5 + 1;
+                const currentSize = this.size * pulse;
+                
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, currentSize, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.shadowBlur = 0;
+                
+                // Draw current number
+                if (this.n <= 1000) {
+                    ctx.fillStyle = this.color;
+                    ctx.font = '10px Monaco';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(this.n.toString(), this.x, this.y - currentSize - 5);
+                }
+            }
+        }
+        
+        function exploreNumber() {
+            const startNum = parseInt(document.getElementById('startNum').value) || 27;
+            const speed = parseInt(document.getElementById('speed').value) || 50;
+            
+            // Generate colors based on the number
+            const hue = (startNum * 137.508) % 360; // Golden angle for nice distribution
+            const color = `hsl(${hue}, 80%, 60%)`;
+            
+            const particle = new CollatzParticle(
+                startNum,
+                width / 2 + (Math.random() - 0.5) * 100,
+                height / 2 + (Math.random() - 0.5) * 100,
+                color
+            );
+            
+            particles.push(particle);
+            activePaths.push(particle);
+        }
+        
+        function randomExploration() {
+            const startNum = Math.floor(Math.random() * 500) + 1;
+            document.getElementById('startNum').value = startNum;
+            exploreNumber();
+        }
+        
+        function clearCanvas() {
+            particles = [];
+            activePaths = [];
+            ctx.clearRect(0, 0, width, height);
+        }
+        
+        function updateStats() {
+            if (activePaths.length === 0) {
+                document.getElementById('currentNum').textContent = '-';
+                document.getElementById('steps').textContent = '-';
+                document.getElementById('maxValue').textContent = '-';
+            } else {
+                const latest = activePaths[activePaths.length - 1];
+                document.getElementById('currentNum').textContent = latest.n;
+                document.getElementById('steps').textContent = latest.steps;
+                document.getElementById('maxValue').textContent = latest.maxValue;
+            }
+            document.getElementById('activePaths').textContent = activePaths.filter(p => p.n > 1).length;
+        }
+        
+        function animate() {
+            // Fade canvas instead of clearing for trail effect
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Update particles
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+            
+            // Remove finished particles
+            activePaths = activePaths.filter(p => p.n > 1);
+            
+            updateStats();
+            requestAnimationFrame(animate);
+        }
+        
+        // Start with a demo
+        setTimeout(() => {
+            exploreNumber();
+        }, 500);
+        
+        animate();
+        
+        // Auto-random exploration
+        setInterval(() => {
+            if (particles.length < 10 && Math.random() < 0.3) {
+                randomExploration();
+            }
+        }, 3000);
+    </script>
+</body>
+</html>

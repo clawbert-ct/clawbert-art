@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gallery of Absurd Sorting Algorithms</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0d0d0d 0%, #1a0033 50%, #000000 100%);
+            color: #00ff88;
+            font-family: 'JetBrains Mono', monospace;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        .title {
+            text-align: center;
+            padding: 40px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid #00ff88;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .title h1 {
+            font-size: 2.5rem;
+            color: #00ffff;
+            text-shadow: 0 0 20px currentColor;
+            margin-bottom: 10px;
+        }
+        
+        .title p {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .algorithm-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            padding: 40px 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .algorithm-card {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #00ff88;
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .algorithm-card:hover {
+            border-color: #00ffff;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+            transform: translateY(-5px);
+        }
+        
+        .algorithm-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #ff0088, #00ff88, #0088ff);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .algorithm-card:hover::before {
+            opacity: 1;
+        }
+        
+        .algorithm-title {
+            font-size: 1.4rem;
+            color: #ff0088;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .algorithm-description {
+            color: #cccccc;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .visualization {
+            min-height: 200px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        .array-display {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .array-element {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: rgba(0, 255, 136, 0.1);
+        }
+        
+        .array-element.comparing {
+            border-color: #ffff00;
+            background: rgba(255, 255, 0, 0.2);
+            box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+        }
+        
+        .array-element.sorted {
+            border-color: #00ffff;
+            background: rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+        
+        .btn:hover {
+            background: #00ffff;
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.8rem;
+            min-height: 20px;
+        }
+        
+        .timer {
+            color: #ffff00;
+            font-weight: bold;
+        }
+        
+        .attempts {
+            color: #ff0088;
+        }
+        
+        .universe-destruction {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle, #ff0000 0%, #000000 70%);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .universe-destruction.active {
+            opacity: 0.9;
+            animation: universeShake 0.5s ease-in-out;
+        }
+        
+        @keyframes universeShake {
+            0%, 100% { transform: translate(0); }
+            25% { transform: translate(-10px, -10px); }
+            50% { transform: translate(10px, 10px); }
+            75% { transform: translate(-5px, 5px); }
+        }
+        
+        .sleep-threads {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .sleep-thread {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 6px;
+        }
+        
+        .thread-number {
+            font-weight: bold;
+            color: #00ffff;
+            width: 30px;
+        }
+        
+        .thread-timer {
+            flex: 1;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .thread-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00ffff);
+            width: 0;
+            transition: width 0.1s ease;
+            border-radius: 10px;
+        }
+        
+        .thread-status {
+            font-size: 0.7rem;
+            color: #666;
+            min-width: 60px;
+        }
+    </style>
+</head>
+<body>
+    <div class="title">
+        <h1>🤡 Gallery of Absurd Sorting Algorithms</h1>
+        <p>Where efficiency goes to die and creativity flourishes. Behold the most wonderfully terrible ways to sort an array!</p>
+    </div>
+    
+    <div class="algorithm-grid">
+        <!-- BogoSort -->
+        <div class="algorithm-card">
+            <div class="algorithm-title">
+                🐒 BogoSort (Monkey Sort)
+            </div>
+            <div class="algorithm-description">
+                Randomly shuffle the array. Is it sorted? Great! If not, shuffle again. And again. And again...
+                <br><strong>Time Complexity:</strong> O((n+1)!) average case. Could take forever! 🤞
+            </div>
+            <div class="visualization">
+                <div class="array-display" id="bogo-array"></div>
+                <div class="controls">
+                    <button class="btn" onclick="startBogoSort()">Start Chaos</button>
+                    <button class="btn" onclick="stopBogoSort()">Stop</button>
+                    <button class="btn" onclick="resetBogoSort()">Reset</button>
+                </div>
+                <div class="status" id="bogo-status"></div>
+            </div>
+        </div>
+        
+        <!-- Sleep Sort -->
+        <div class="algorithm-card">
+            <div class="algorithm-title">
+                😴 Sleep Sort
+            </div>
+            <div class="algorithm-description">
+                Create a thread for each number that sleeps for that many seconds, then prints itself. Sorting by patience!
+                <br><strong>Time Complexity:</strong> O(max(input)) wall-clock time. Literally wait for the biggest number.
+            </div>
+            <div class="visualization">
+                <div class="array-display" id="sleep-array"></div>
+                <div class="sleep-threads" id="sleep-threads"></div>
+                <div class="controls">
+                    <button class="btn" onclick="startSleepSort()">Sleep & Sort</button>
+                    <button class="btn" onclick="stopSleepSort()">Wake Up</button>
+                    <button class="btn" onclick="resetSleepSort()">Reset</button>
+                </div>
+                <div class="status" id="sleep-status"></div>
+            </div>
+        </div>
+        
+        <!-- Quantum BogoSort -->
+        <div class="algorithm-card">
+            <div class="algorithm-title">
+                🌌 Quantum BogoSort
+            </div>
+            <div class="algorithm-description">
+                Generate a random permutation using quantum entropy. If not sorted, destroy the universe. In the multiverse, there's always a timeline where it worked!
+                <br><strong>Time Complexity:</strong> O(1) in the universe where it works. ∞ everywhere else.
+            </div>
+            <div class="visualization">
+                <div class="array-display" id="quantum-array"></div>
+                <div class="universe-destruction" id="universe-destruction">
+                    💥 UNIVERSE DESTROYED 💥
+                </div>
+                <div class="controls">
+                    <button class="btn" onclick="quantumBogoSort()">Roll Quantum Dice</button>
+                    <button class="btn" onclick="resetQuantumSort()">New Universe</button>
+                </div>
+                <div class="status" id="quantum-status"></div>
+            </div>
+        </div>
+        
+        <!-- Stalin Sort -->
+        <div class="algorithm-card">
+            <div class="algorithm-title">
+                🔴 Stalin Sort
+            </div>
+            <div class="algorithm-description">
+                Scan through the array. Any element smaller than the previous one gets "eliminated" (removed). What remains is technically sorted!
+                <br><strong>Time Complexity:</strong> O(n). Highly efficient! Just, uh, destroys your data...
+            </div>
+            <div class="visualization">
+                <div class="array-display" id="stalin-array"></div>
+                <div class="controls">
+                    <button class="btn" onclick="stalinSort()">Eliminate Dissidents</button>
+                    <button class="btn" onclick="resetStalinSort()">Restore Democracy</button>
+                </div>
+                <div class="status" id="stalin-status"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Global state
+        let algorithms = {
+            bogo: {
+                array: [3, 1, 4, 1, 5],
+                running: false,
+                attempts: 0,
+                interval: null
+            },
+            sleep: {
+                array: [3, 1, 4, 2],
+                threads: [],
+                running: false,
+                sorted: [],
+                timeMultiplier: 500 // ms per unit
+            },
+            quantum: {
+                array: [4, 2, 7, 1, 3],
+                attempts: 0
+            },
+            stalin: {
+                array: [3, 1, 4, 1, 5, 9, 2, 6],
+                original: [3, 1, 4, 1, 5, 9, 2, 6]
+            }
+        };
+        
+        // Utility functions
+        function shuffle(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+        
+        function isSorted(array) {
+            for (let i = 1; i < array.length; i++) {
+                if (array[i] < array[i-1]) return false;
+            }
+            return true;
+        }
+        
+        function renderArray(containerId, array, highlights = {}) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = array.map((num, i) => {
+                let classes = 'array-element';
+                if (highlights.comparing && highlights.comparing.includes(i)) classes += ' comparing';
+                if (highlights.sorted && highlights.sorted.includes(i)) classes += ' sorted';
+                return `<div class="${classes}">${num}</div>`;
+            }).join('');
+        }
+        
+        // BogoSort Implementation
+        function startBogoSort() {
+            const bogo = algorithms.bogo;
+            if (bogo.running) return;
+            
+            bogo.running = true;
+            bogo.attempts = 0;
+            bogo.interval = setInterval(() => {
+                bogo.array = shuffle(bogo.array);
+                bogo.attempts++;
+                
+                renderArray('bogo-array', bogo.array);
+                document.getElementById('bogo-status').innerHTML = 
+                    `<span class="attempts">Attempts: ${bogo.attempts}</span>`;
+                
+                if (isSorted(bogo.array)) {
+                    stopBogoSort();
+                    document.getElementById('bogo-status').innerHTML = 
+                        `🎉 <span style="color: #00ffff;">Miracle! Sorted in ${bogo.attempts} attempts!</span>`;
+                    renderArray('bogo-array', bogo.array, { sorted: Array.from({length: bogo.array.length}, (_, i) => i) });
+                }
+            }, 100);
+        }
+        
+        function stopBogoSort() {
+            algorithms.bogo.running = false;
+            if (algorithms.bogo.interval) {
+                clearInterval(algorithms.bogo.interval);
+                algorithms.bogo.interval = null;
+            }
+        }
+        
+        function resetBogoSort() {
+            stopBogoSort();
+            algorithms.bogo.array = [3, 1, 4, 1, 5];
+            algorithms.bogo.attempts = 0;
+            renderArray('bogo-array', algorithms.bogo.array);
+            document.getElementById('bogo-status').textContent = '';
+        }
+        
+        // Sleep Sort Implementation
+        function startSleepSort() {
+            const sleep = algorithms.sleep;
+            if (sleep.running) return;
+            
+            sleep.running = true;
+            sleep.sorted = [];
+            sleep.threads = [];
+            
+            // Create thread visualizations
+            const threadsContainer = document.getElementById('sleep-threads');
+            threadsContainer.innerHTML = sleep.array.map((num, i) => `
+                <div class="sleep-thread">
+                    <div class="thread-number">${num}</div>
+                    <div class="thread-timer">
+                        <div class="thread-progress" id="progress-${i}"></div>
+                    </div>
+                    <div class="thread-status" id="status-${i}">Sleeping...</div>
+                </div>
+            `).join('');
+            
+            // Start "threads" (timeouts)
+            sleep.array.forEach((num, i) => {
+                const duration = num * sleep.timeMultiplier;
+                let elapsed = 0;
+                
+                const progressInterval = setInterval(() => {
+                    if (!sleep.running) {
+                        clearInterval(progressInterval);
+                        return;
+                    }
+                    
+                    elapsed += 50;
+                    const progress = (elapsed / duration) * 100;
+                    document.getElementById(`progress-${i}`).style.width = `${Math.min(progress, 100)}%`;
+                }, 50);
+                
+                const timeout = setTimeout(() => {
+                    if (sleep.running) {
+                        sleep.sorted.push(num);
+                        document.getElementById(`status-${i}`).textContent = 'Awake!';
+                        document.getElementById(`status-${i}`).style.color = '#00ffff';
+                        updateSleepSortDisplay();
+                    }
+                    clearInterval(progressInterval);
+                }, duration);
+                
+                sleep.threads.push({ timeout, progressInterval });
+            });
+        }
+        
+        function updateSleepSortDisplay() {
+            const sleep = algorithms.sleep;
+            renderArray('sleep-array', sleep.sorted);
+            document.getElementById('sleep-status').innerHTML = 
+                `<span class="timer">Sorted so far: [${sleep.sorted.join(', ')}]</span>`;
+            
+            if (sleep.sorted.length === sleep.array.length) {
+                document.getElementById('sleep-status').innerHTML += 
+                    '<br>😴 <span style="color: #00ffff;">All threads awake! Sorting complete!</span>';
+            }
+        }
+        
+        function stopSleepSort() {
+            algorithms.sleep.running = false;
+            algorithms.sleep.threads.forEach(thread => {
+                clearTimeout(thread.timeout);
+                clearInterval(thread.progressInterval);
+            });
+            algorithms.sleep.threads = [];
+        }
+        
+        function resetSleepSort() {
+            stopSleepSort();
+            algorithms.sleep.array = [3, 1, 4, 2];
+            algorithms.sleep.sorted = [];
+            renderArray('sleep-array', algorithms.sleep.array);
+            document.getElementById('sleep-threads').innerHTML = '';
+            document.getElementById('sleep-status').textContent = '';
+        }
+        
+        // Quantum BogoSort Implementation
+        function quantumBogoSort() {
+            const quantum = algorithms.quantum;
+            quantum.attempts++;
+            
+            // "Quantum" shuffle (just regular shuffle with style)
+            quantum.array = shuffle(quantum.array);
+            renderArray('quantum-array', quantum.array);
+            
+            if (isSorted(quantum.array)) {
+                document.getElementById('quantum-status').innerHTML = 
+                    `🌟 <span style="color: #00ffff;">Quantum miracle! Sorted on attempt ${quantum.attempts}!</span>`;
+                renderArray('quantum-array', quantum.array, { sorted: Array.from({length: quantum.array.length}, (_, i) => i) });
+            } else {
+                // Destroy universe!
+                document.getElementById('universe-destruction').classList.add('active');
+                document.getElementById('quantum-status').innerHTML = 
+                    `💥 <span style="color: #ff0000;">Universe ${quantum.attempts} destroyed! Rolling again...</span>`;
+                
+                setTimeout(() => {
+                    document.getElementById('universe-destruction').classList.remove('active');
+                }, 1000);
+            }
+        }
+        
+        function resetQuantumSort() {
+            algorithms.quantum.array = [4, 2, 7, 1, 3];
+            algorithms.quantum.attempts = 0;
+            renderArray('quantum-array', algorithms.quantum.array);
+            document.getElementById('quantum-status').textContent = '';
+            document.getElementById('universe-destruction').classList.remove('active');
+        }
+        
+        // Stalin Sort Implementation
+        function stalinSort() {
+            const stalin = algorithms.stalin;
+            const result = [];
+            const eliminated = [];
+            
+            for (let i = 0; i < stalin.array.length; i++) {
+                if (result.length === 0 || stalin.array[i] >= result[result.length - 1]) {
+                    result.push(stalin.array[i]);
+                } else {
+                    eliminated.push(stalin.array[i]);
+                }
+            }
+            
+            stalin.array = result;
+            renderArray('stalin-array', stalin.array, { sorted: Array.from({length: result.length}, (_, i) => i) });
+            document.getElementById('stalin-status').innerHTML = 
+                `🔴 Eliminated: [${eliminated.join(', ')}]<br>` +
+                `✓ <span style="color: #00ffff;">Remaining: [${result.join(', ')}] (technically sorted!)</span>`;
+        }
+        
+        function resetStalinSort() {
+            algorithms.stalin.array = [...algorithms.stalin.original];
+            renderArray('stalin-array', algorithms.stalin.array);
+            document.getElementById('stalin-status').textContent = '';
+        }
+        
+        // Initialize displays
+        renderArray('bogo-array', algorithms.bogo.array);
+        renderArray('sleep-array', algorithms.sleep.array);
+        renderArray('quantum-array', algorithms.quantum.array);
+        renderArray('stalin-array', algorithms.stalin.array);
+    </script>
+</body>
+</html>
