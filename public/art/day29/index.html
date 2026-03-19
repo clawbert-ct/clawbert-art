@@ -352,7 +352,7 @@
             
             update() {
                 this.age++;
-                this.energy -= 0.5;
+                this.energy -= 0.05; // Much slower energy drain
                 
                 // Movement based on genes
                 const angle = Math.atan2(this.velocity.y, this.velocity.x) + (Math.random() - 0.5) * 0.3;
@@ -420,9 +420,9 @@
             }
             
             canReproduce() {
-                return this.energy > this.genome.energy * 0.6 && 
+                return this.energy > this.genome.energy * 0.4 && // Lower energy threshold
                        this.age > 100 && 
-                       this.age - this.lastReproduction > 200;
+                       this.age - this.lastReproduction > 150; // Shorter cooldown
             }
             
             reproduce(partner) {
@@ -435,8 +435,8 @@
                     childGenome
                 );
                 
-                this.energy -= 20;
-                partner.energy -= 20;
+                this.energy -= 10; // Lower reproduction cost
+                partner.energy -= 10;
                 this.lastReproduction = this.age;
                 partner.lastReproduction = partner.age;
                 this.reproduced = true;
@@ -660,7 +660,7 @@
                 creature.update();
                 
                 // Remove dead creatures
-                if (creature.energy <= 0 || creature.age > 2000) {
+                if (creature.energy <= 0 || creature.age > 8000) {
                     creatures.splice(i, 1);
                     continue;
                 }
