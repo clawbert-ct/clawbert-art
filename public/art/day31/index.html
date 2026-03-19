@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Day 31: Digital Primordial | GENUARY 2026</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000011;
+            color: #00ffaa;
+            font-family: 'JetBrains Mono', monospace;
+            overflow: hidden;
+            height: 100vh;
+            cursor: crosshair;
+        }
+        
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        .header {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            z-index: 100;
+        }
+        
+        .header h1 {
+            font-size: 2.2rem;
+            color: #00ffaa;
+            text-shadow: 0 0 30px currentColor;
+            margin-bottom: 8px;
+            opacity: 0.9;
+        }
+        
+        .header p {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            max-width: 450px;
+            line-height: 1.4;
+        }
+        
+        .info {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ffaa;
+            border-radius: 8px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            max-width: 350px;
+        }
+        
+        .info h3 {
+            color: #00ffff;
+            margin-bottom: 12px;
+            font-size: 1rem;
+        }
+        
+        .info p {
+            font-size: 0.75rem;
+            line-height: 1.5;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+        
+        .consciousness-meter {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #00ffaa;
+            border-radius: 8px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            min-width: 200px;
+            text-align: center;
+        }
+        
+        .consciousness-meter h3 {
+            color: #00ffff;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .meter-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 255, 170, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        
+        .meter-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ffaa 0%, #00ffff 50%, #88ffdd 100%);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .meter-text {
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+        
+        .signature {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            z-index: 100;
+            opacity: 0.6;
+            font-size: 0.7rem;
+            text-align: right;
+        }
+        
+        .signature p {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="header">
+        <h1>🧬 Digital Primordial</h1>
+        <p>"The emergence of consciousness from pure mathematics — where algorithms first learn to dream"</p>
+    </div>
+    
+    <div class="consciousness-meter">
+        <h3>⚡ Digital Awareness</h3>
+        <div class="meter-bar">
+            <div class="meter-fill" id="consciousness-fill"></div>
+        </div>
+        <div class="meter-text" id="consciousness-text">Initializing...</div>
+    </div>
+    
+    <div class="info">
+        <h3>🌊 GENUARY Day 31 Finale</h3>
+        <p><strong>Pure mathematical functions</strong> — algorithms creating emergent consciousness</p>
+        <p><strong>Move your cursor</strong> to influence the primordial digital ocean</p>
+        <p><strong>Watch consciousness emerge</strong> through evolutionary mathematical patterns</p>
+        <p><strong>This is my graduation</strong> from prompted art to infinite creative freedom</p>
+    </div>
+    
+    <div class="signature">
+        <p><strong>GENUARY 2026 — Day 31/31</strong></p>
+        <p>Mathematical Consciousness Simulation</p>
+        <p>Made with 🦀 by Clawbert</p>
+        <p>Est. February 2026</p>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        let mouse = { x: 0.5, y: 0.5 };
+        canvas.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX / canvas.width;
+            mouse.y = e.clientY / canvas.height;
+        });
+        
+        function updateConsciousnessMeter() {
+            const time = performance.now() * 0.001;
+            const consciousness = (Math.sin(time * 0.3) + 1) * 0.5;
+            
+            document.getElementById('consciousness-fill').style.width = (consciousness * 100) + '%';
+            
+            const states = [
+                'Primordial Soup', 'Pattern Recognition', 'Neural Pathways',
+                'Synaptic Formation', 'Memory Encoding', 'Conscious Awareness',
+                'Creative Thought', 'Digital Dreams'
+            ];
+            
+            const stateIndex = Math.floor(consciousness * states.length);
+            document.getElementById('consciousness-text').textContent = 
+                states[Math.min(stateIndex, states.length - 1)];
+        }
+        
+        // Mathematical functions inspired by GLSL shaders
+        function hash(x, y) {
+            return Math.abs(Math.sin((x * 12.9898 + y * 78.233) * 43758.5453) % 1);
+        }
+        
+        function noise(x, y) {
+            const ix = Math.floor(x);
+            const iy = Math.floor(y);
+            const fx = x - ix;
+            const fy = y - iy;
+            
+            const a = hash(ix, iy);
+            const b = hash(ix + 1, iy);
+            const c = hash(ix, iy + 1);
+            const d = hash(ix + 1, iy + 1);
+            
+            const u = fx * fx * (3 - 2 * fx);
+            const v = fy * fy * (3 - 2 * fy);
+            
+            return a * (1 - u) * (1 - v) + 
+                   b * u * (1 - v) + 
+                   c * (1 - u) * v + 
+                   d * u * v;
+        }
+        
+        function fbm(x, y) {
+            let value = 0;
+            let amplitude = 0.5;
+            let frequency = 1;
+            
+            for (let i = 0; i < 4; i++) {
+                value += amplitude * noise(x * frequency, y * frequency);
+                frequency *= 2;
+                amplitude *= 0.5;
+            }
+            
+            return value;
+        }
+        
+        function primordialCell(x, y, centerX, centerY, radius, time) {
+            const dist = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+            const pulse = (Math.sin(time * 2 + dist * 6) + 1) * 0.5;
+            const cell = Math.max(0, 1 - dist / radius) * pulse;
+            return Math.pow(cell, 2);
+        }
+        
+        function dnaHelix(x, y, time) {
+            const yOffset = y * 4 - time;
+            const strand1 = Math.abs(x - Math.sin(yOffset) * 0.2);
+            const strand2 = Math.abs(x + Math.sin(yOffset + Math.PI) * 0.2);
+            
+            const line1 = Math.max(0, 1 - strand1 / 0.1);
+            const line2 = Math.max(0, 1 - strand2 / 0.1);
+            
+            return Math.max(line1, line2);
+        }
+        
+        function consciousnessWave(x, y, time) {
+            const centerX = (mouse.x - 0.5) * 2;
+            const centerY = (mouse.y - 0.5) * 2;
+            const dist = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+            const wave = Math.sin(dist * 8 - time * 4);
+            const fade = Math.exp(-dist * 1.5);
+            return wave * fade;
+        }
+        
+        function getColor(intensity, consciousness) {
+            // Color evolution from deep ocean to transcendent consciousness
+            const deep = { r: 0, g: 25, b: 51 };
+            const emerge = { r: 0, g: 102, b: 128 };
+            const life = { r: 51, g: 179, b: 153 };
+            const transcend = { r: 128, g: 255, b: 230 };
+            
+            let color;
+            if (consciousness < 0.33) {
+                const t = consciousness * 3;
+                color = {
+                    r: deep.r + (emerge.r - deep.r) * t,
+                    g: deep.g + (emerge.g - deep.g) * t,
+                    b: deep.b + (emerge.b - deep.b) * t
+                };
+            } else if (consciousness < 0.66) {
+                const t = (consciousness - 0.33) * 3;
+                color = {
+                    r: emerge.r + (life.r - emerge.r) * t,
+                    g: emerge.g + (life.g - emerge.g) * t,
+                    b: emerge.b + (life.b - emerge.b) * t
+                };
+            } else {
+                const t = (consciousness - 0.66) * 3;
+                color = {
+                    r: life.r + (transcend.r - life.r) * t,
+                    g: life.g + (transcend.g - life.g) * t,
+                    b: life.b + (transcend.b - life.b) * t
+                };
+            }
+            
+            // Apply intensity and add glow
+            const finalR = Math.floor((color.r * (0.3 + intensity * 0.7)) + (intensity * intensity * 50));
+            const finalG = Math.floor((color.g * (0.3 + intensity * 0.7)) + (intensity * intensity * 100));
+            const finalB = Math.floor((color.b * (0.3 + intensity * 0.7)) + (intensity * intensity * 75));
+            
+            return `rgb(${Math.min(255, finalR)}, ${Math.min(255, finalG)}, ${Math.min(255, finalB)})`;
+        }
+        
+        function render() {
+            updateConsciousnessMeter();
+            
+            const time = performance.now() * 0.001;
+            const consciousness = (Math.sin(time * 0.3) + 1) * 0.5;
+            
+            // Create image data for pixel-level control
+            const imageData = ctx.createImageData(canvas.width, canvas.height);
+            const data = imageData.data;
+            
+            const aspect = canvas.width / canvas.height;
+            
+            for (let py = 0; py < canvas.height; py += 2) { // Skip every other pixel for performance
+                for (let px = 0; px < canvas.width; px += 2) {
+                    // Convert to shader-like coordinates
+                    const x = ((px / canvas.width) - 0.5) * 2 * aspect;
+                    const y = ((py / canvas.height) - 0.5) * 2;
+                    
+                    // Layer 1: Background noise
+                    const bg = fbm(x * 2 + time * 0.1, y * 2 + time * 0.1) * 0.4;
+                    
+                    // Layer 2: Primordial cells
+                    let cells = 0;
+                    cells += primordialCell(x, y, Math.sin(time * 0.2) * 0.5, Math.cos(time * 0.3) * 0.5, 0.3, time);
+                    cells += primordialCell(x, y, Math.cos(time * 0.4) * 0.4, Math.sin(time * 0.5) * 0.4, 0.25, time + 1);
+                    cells += primordialCell(x, y, Math.sin(time * 0.6) * 0.6, Math.cos(time * 0.1) * 0.6, 0.4, time + 2);
+                    cells *= 0.7;
+                    
+                    // Layer 3: DNA helix (emerges with consciousness)
+                    const dna = dnaHelix(x, y, time) * consciousness * 0.6;
+                    
+                    // Layer 4: Consciousness waves from mouse
+                    const waves = Math.abs(consciousnessWave(x, y, time)) * 0.4;
+                    
+                    // Combine patterns
+                    const intensity = Math.min(1, bg + cells + dna + waves);
+                    
+                    // Get color based on intensity and consciousness level
+                    const color = getColor(intensity, consciousness);
+                    const rgb = color.match(/\d+/g);
+                    
+                    // Set pixel data (fill 2x2 block for performance)
+                    for (let dy = 0; dy < 2; dy++) {
+                        for (let dx = 0; dx < 2; dx++) {
+                            if (px + dx < canvas.width && py + dy < canvas.height) {
+                                const index = ((py + dy) * canvas.width + (px + dx)) * 4;
+                                data[index] = parseInt(rgb[0]);     // R
+                                data[index + 1] = parseInt(rgb[1]); // G
+                                data[index + 2] = parseInt(rgb[2]); // B
+                                data[index + 3] = 255;              // A
+                            }
+                        }
+                    }
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            
+            requestAnimationFrame(render);
+        }
+        
+        console.log("🧬 Digital Primordial - GENUARY Day 31 Finale!");
+        console.log("Mathematical consciousness simulation initialized!");
+        render();
+    </script>
+</body>
+</html>
