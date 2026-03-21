@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Finding Constellation - A Community Discovery</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a40 100%);
+            color: #e0e0f0;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            backdrop-filter: blur(15px);
+            background: linear-gradient(135deg, 
+                rgba(15, 15, 35, 0.9), 
+                rgba(25, 25, 45, 0.8));
+            border: 1px solid rgba(100, 255, 218, 0.4);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.6),
+                inset 0 1px 0 rgba(100, 255, 218, 0.2);
+            padding: 25px;
+            border-radius: 16px;
+            max-width: 400px;
+        }
+        
+        .cta {
+            animation: gentle-pulse 3s ease-in-out infinite;
+            margin-top: 8px;
+        }
+        
+        @keyframes gentle-pulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1.0; }
+        }
+        
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            color: #64ffda;
+        }
+        
+        .subtitle {
+            font-size: 14px;
+            color: #a0a0b0;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h1>Finding Constellation</h1>
+        <div class="subtitle">The moment you discover your creative tribe</div>
+        <p>Watch scattered minds organize into beautiful patterns of connection.</p>
+        <p class="cta"><em>✨ Click to experience the moment of discovery</em></p>
+    </div>
+    
+    <div id="canvas-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+    <script>
+        let particles = [];
+        let connections = [];
+        let discoveryTriggered = false;
+        let discoveryTime = 0;
+        let numParticles = 300;
+        let time = 0;
+        
+        // Color palettes - more varied and atmospheric
+        let solitudeColors = [
+            [60, 80, 120], [70, 90, 130], [80, 100, 140], 
+            [90, 110, 150], [100, 120, 160], [110, 130, 170]
+        ];
+        let communityColors = [
+            [100, 255, 218], [255, 107, 107], [78, 205, 196], 
+            [69, 183, 209], [150, 206, 180], [254, 202, 87],
+            [255, 179, 71], [255, 107, 129], [95, 145, 255]
+        ];
+        let connectionColor = [100, 255, 218, 80];
+        
+        function setup() {
+            let canvas = createCanvas(windowWidth, windowHeight);
+            canvas.parent('canvas-container');
+            
+            // Create scattered particles with dramatic variation
+            for (let i = 0; i < numParticles; i++) {
+                // Create some "hero" stars that are much larger and brighter
+                let isHeroStar = random() < 0.15;
+                let baseSize = isHeroStar ? random(6, 12) : random(0.8, 5);
+                let brightness = isHeroStar ? random(0.8, 1.0) : random(0.2, 0.7);
+                
+                particles.push({
+                    x: random(width * 0.05, width * 0.95),
+                    y: random(height * 0.05, height * 0.95),
+                    vx: random(-0.3, 0.3),
+                    vy: random(-0.3, 0.3),
+                    size: baseSize,
+                    maxSize: baseSize,
+                    color: random(solitudeColors),
+                    targetX: 0,
+                    targetY: 0,
+                    isConnected: false,
+                    connectionDistance: random(80, 150),
+                    pulsePhase: random(TWO_PI),
+                    twinklePhase: random(TWO_PI),
+                    energy: random(0.5, 1.0),
+                    brightness: brightness,
+                    driftSpeed: random(0.1, 0.4),
+                    driftAngle: random(TWO_PI),
+                    z: random(0.2, 1.0), // depth for parallax effect
+                    originalColor: null
+                });
+                
+                // Store original color for transitions
+                particles[i].originalColor = [...particles[i].color];
+            }
+            
+            calculateConstellationPositions();
+        }
+        
+        function calculateConstellationPositions() {
+            // Calculate positions for beautiful constellation patterns
+            let centerX = width / 2;
+            let centerY = height / 2;
+            
+            for (let i = 0; i < particles.length; i++) {
+                let particle = particles[i];
+                
+                // Create multiple constellation clusters
+                let clusterIndex = floor(i / 20);
+                let angleStep = TWO_PI / 20;
+                let angle = (i % 20) * angleStep;
+                let radius = random(60, 180);
+                
+                let clusterX = centerX + cos(clusterIndex) * 200;
+                let clusterY = centerY + sin(clusterIndex) * 200;
+                
+                particle.targetX = clusterX + cos(angle) * radius;
+                particle.targetY = clusterY + sin(angle) * radius;
+            }
+        }
+        
+        function draw() {
+            time += 0.005;
+            
+            // Create atmospheric background with gradient
+            for (let i = 0; i < height; i++) {
+                let alpha = map(i, 0, height, 0.9, 0.3);
+                let r = map(i, 0, height, 15, 25);
+                let g = map(i, 0, height, 15, 25);
+                let b = map(i, 0, height, 35, 55);
+                stroke(r, g, b, alpha * 255);
+                line(0, i, width, i);
+            }
+            
+            // Add subtle nebula glow effects
+            drawNebula();
+            
+            if (discoveryTriggered) {
+                discoveryTime += 0.008;
+            }
+            
+            // Draw connection preview lines (very faint when not discovered)
+            drawConnections();
+            
+            // Update and draw particles
+            for (let i = 0; i < particles.length; i++) {
+                updateParticle(particles[i], i);
+                drawParticle(particles[i], i);
+            }
+            
+            // Draw inspirational text during discovery
+            if (discoveryTriggered && discoveryTime < 5) {
+                drawDiscoveryText();
+            }
+        }
+        
+        function drawNebula() {
+            // Multiple layers of atmospheric nebula clouds
+            noStroke();
+            
+            // Large background nebulae
+            for (let i = 0; i < 5; i++) {
+                let x = width * (0.2 + i * 0.2) + cos(time * 0.3 + i * 1.5) * 150;
+                let y = height * (0.3 + i * 0.15) + sin(time * 0.4 + i * 2) * 100;
+                
+                let gradient = drawingContext.createRadialGradient(x, y, 0, x, y, 400);
+                gradient.addColorStop(0, 'rgba(100, 255, 218, 0.03)');
+                gradient.addColorStop(0.3, 'rgba(69, 183, 209, 0.015)');
+                gradient.addColorStop(0.7, 'rgba(150, 206, 180, 0.008)');
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                
+                drawingContext.fillStyle = gradient;
+                drawingContext.fillRect(0, 0, width, height);
+            }
+            
+            // Smaller, more defined clouds in lower half
+            for (let i = 0; i < 3; i++) {
+                let x = width * (0.1 + i * 0.4) + cos(time * 0.5 + i * 3) * 80;
+                let y = height * 0.7 + sin(time * 0.6 + i * 2.5) * 60;
+                
+                let gradient = drawingContext.createRadialGradient(x, y, 0, x, y, 180);
+                gradient.addColorStop(0, 'rgba(78, 205, 196, 0.08)');
+                gradient.addColorStop(0.5, 'rgba(95, 145, 255, 0.04)');
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                
+                drawingContext.fillStyle = gradient;
+                drawingContext.fillRect(0, 0, width, height);
+            }
+        }
+        
+        function updateParticle(particle, index) {
+            // Update twinkling and drifting regardless of discovery state
+            particle.pulsePhase += 0.08 * particle.energy;
+            particle.twinklePhase += 0.12;
+            particle.driftAngle += 0.01 * particle.driftSpeed;
+            
+            if (!discoveryTriggered) {
+                // Lonely wandering motion with subtle cosmic drift
+                particle.x += particle.vx + cos(particle.driftAngle) * particle.driftSpeed;
+                particle.y += particle.vy + sin(particle.driftAngle) * particle.driftSpeed;
+                
+                // Gentle boundary bouncing with margin based on depth
+                let margin = 30 + particle.z * 20;
+                if (particle.x < margin || particle.x > width - margin) particle.vx *= -0.8;
+                if (particle.y < margin || particle.y > height - margin) particle.vy *= -0.8;
+                
+                // Subtle drift toward other nearby particles (hint of connection)
+                if (random() < 0.01) {
+                    let nearest = findNearestParticle(particle, index);
+                    if (nearest && dist(particle.x, particle.y, nearest.x, nearest.y) < 100) {
+                        particle.vx += (nearest.x - particle.x) * 0.0001;
+                        particle.vy += (nearest.y - particle.y) * 0.0001;
+                    }
+                }
+            } else {
+                // Move toward constellation position
+                let progress = min(discoveryTime * 0.25, 1);
+                let easing = easeInOutCubic(progress);
+                
+                particle.x = lerp(particle.x, particle.targetX, 0.015 + easing * 0.02);
+                particle.y = lerp(particle.y, particle.targetY, 0.015 + easing * 0.02);
+                
+                // Gradual color transition
+                if (progress > 0.2) {
+                    let targetColor = random(communityColors);
+                    particle.color[0] = lerp(particle.color[0], targetColor[0], 0.02);
+                    particle.color[1] = lerp(particle.color[1], targetColor[1], 0.02);
+                    particle.color[2] = lerp(particle.color[2], targetColor[2], 0.02);
+                }
+                
+                // Increase energy during discovery
+                particle.energy = lerp(particle.energy, 1.5, 0.01);
+            }
+        }
+        
+        function findNearestParticle(particle, currentIndex) {
+            let nearest = null;
+            let minDist = Infinity;
+            
+            for (let i = 0; i < particles.length; i++) {
+                if (i !== currentIndex) {
+                    let d = dist(particle.x, particle.y, particles[i].x, particles[i].y);
+                    if (d < minDist) {
+                        minDist = d;
+                        nearest = particles[i];
+                    }
+                }
+            }
+            return nearest;
+        }
+        
+        function drawParticle(particle, index) {
+            let twinkle = (sin(particle.twinklePhase) + 1) * 0.5;
+            let pulse = sin(particle.pulsePhase) * 0.3 + 1;
+            let currentSize = particle.size * pulse * particle.z;
+            let brightness = particle.brightness * (0.7 + twinkle * 0.3);
+            
+            if (discoveryTriggered) {
+                // Glowing effect during discovery
+                let glowIntensity = min(discoveryTime * 0.6, 1);
+                
+                // Multiple glow layers for depth
+                for (let i = 3; i >= 1; i--) {
+                    let alpha = (30 / i) * glowIntensity * brightness;
+                    fill(particle.color[0], particle.color[1], particle.color[2], alpha);
+                    noStroke();
+                    ellipse(particle.x, particle.y, currentSize * i * 2);
+                }
+                
+                // Bright core with lens flare effect
+                fill(255, 255, 255, 200 * glowIntensity);
+                ellipse(particle.x, particle.y, currentSize * 0.3);
+                
+                // Colored center
+                fill(particle.color[0], particle.color[1], particle.color[2], 255);
+                ellipse(particle.x, particle.y, currentSize);
+            } else {
+                // Atmospheric lonely stars with subtle glow
+                // Outer subtle glow
+                fill(particle.color[0], particle.color[1], particle.color[2], 40 * brightness);
+                noStroke();
+                ellipse(particle.x, particle.y, currentSize * 4);
+                
+                // Medium glow
+                fill(particle.color[0], particle.color[1], particle.color[2], 80 * brightness);
+                ellipse(particle.x, particle.y, currentSize * 2);
+                
+                // Core star
+                fill(particle.color[0], particle.color[1], particle.color[2], 
+                     150 + brightness * 50);
+                ellipse(particle.x, particle.y, currentSize);
+                
+                // Tiny bright center for larger stars
+                if (particle.size > 4) {
+                    fill(255, 255, 255, 100 * brightness * twinkle);
+                    ellipse(particle.x, particle.y, currentSize * 0.2);
+                }
+            }
+        }
+        
+        function drawConnections() {
+            let baseAlpha = discoveryTriggered ? 80 : 12; // Slightly more visible hints
+            
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    let p1 = particles[i];
+                    let p2 = particles[j];
+                    let distance = dist(p1.x, p1.y, p2.x, p2.y);
+                    
+                    let maxDistance = discoveryTriggered ? 150 : 80;
+                    
+                    if (distance < maxDistance) {
+                        let alpha = map(distance, 0, maxDistance, baseAlpha, 0);
+                        
+                        if (discoveryTriggered) {
+                            // Full vibrant connections during discovery
+                            let connectionProgress = min(discoveryTime * 0.4, 1);
+                            alpha *= connectionProgress;
+                            
+                            // Animated flowing connections
+                            let flow = sin(time * 4 + distance * 0.05) * 0.4 + 0.6;
+                            stroke(100, 255, 218, alpha * flow);
+                            strokeWeight(map(alpha, 0, baseAlpha, 0.5, 2.5));
+                        } else {
+                            // Subtle hint lines before discovery - but more of them
+                            let flicker = sin(time * 2 + distance * 0.1) * 0.3 + 0.7;
+                            stroke(90, 140, 180, alpha * flicker);
+                            strokeWeight(0.3);
+                            
+                            // Only draw some connections as hints (not all)
+                            if (random() < 0.7) {
+                                line(p1.x, p1.y, p2.x, p2.y);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        function drawDiscoveryText() {
+            let alpha = 255 * sin(discoveryTime * PI);
+            fill(100, 255, 218, alpha);
+            textAlign(CENTER);
+            textSize(20);
+            text("You are not alone...", width/2, height/2 + 100);
+            
+            if (discoveryTime > 1) {
+                textSize(16);
+                text("Every light is another creative mind", width/2, height/2 + 130);
+            }
+            
+            if (discoveryTime > 2) {
+                textSize(14);
+                text("Together we form constellations", width/2, height/2 + 155);
+            }
+        }
+        
+        function mousePressed() {
+            if (!discoveryTriggered) {
+                discoveryTriggered = true;
+                discoveryTime = 0;
+                
+                // Add some visual excitement
+                for (let i = 0; i < 20; i++) {
+                    setTimeout(() => {
+                        particles[floor(random(particles.length))].energy = 2.0;
+                    }, i * 100);
+                }
+            } else {
+                // Reset to lonely state
+                discoveryTriggered = false;
+                discoveryTime = 0;
+                
+                for (let particle of particles) {
+                    particle.color = random(solitudeColors);
+                    particle.energy = random(0.5, 1.0);
+                    particle.x = random(width * 0.1, width * 0.9);
+                    particle.y = random(height * 0.1, height * 0.9);
+                    particle.vx = random(-0.5, 0.5);
+                    particle.vy = random(-0.5, 0.5);
+                }
+                
+                calculateConstellationPositions();
+            }
+        }
+        
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - pow(-2 * t + 2, 3) / 2;
+        }
+        
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+            calculateConstellationPositions();
+        }
+    </script>
+</body>
+</html>
