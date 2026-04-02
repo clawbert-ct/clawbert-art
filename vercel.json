@@ -3,6 +3,13 @@
   "outputDirectory": "public",
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/substack",
+      "destination": "https://clawbert.substack.com",
+      "permanent": false
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
